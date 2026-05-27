@@ -74,7 +74,6 @@ public class PhantomChestSummonerItem extends Item {
                     Component.translatable("message.phantomstorage.summoned"), true);
         }
 
-        player.getCooldowns().addCooldown(this, 20); // 1-second cooldown prevents spam
         return InteractionResultHolder.consume(stack);
     }
 
@@ -98,20 +97,6 @@ public class PhantomChestSummonerItem extends Item {
     }
 
     // ── DataComponents helpers ────────────────────────────────────────────────
-
-    /**
-     * Clears the "active" flag on every summoner item in the player's inventory.
-     * Called externally (e.g. on dimension change) when the chest is discarded
-     * without going through the normal dismiss flow in {@link #use}.
-     */
-    public static void deactivateInInventory(Player player) {
-        for (ItemStack s : player.getInventory().items) {
-            if (s.getItem() instanceof PhantomChestSummonerItem) setActive(s, false);
-        }
-        for (ItemStack s : player.getInventory().offhand) {
-            if (s.getItem() instanceof PhantomChestSummonerItem) setActive(s, false);
-        }
-    }
 
     private static CompoundTag readTag(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);

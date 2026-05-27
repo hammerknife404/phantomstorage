@@ -110,8 +110,6 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        // Close the GUI if the entity is gone or the player has wandered more than 8 blocks away
-        return entity != null && entity.isAlive()
-                && entity.distanceToSqr(player) < 64.0;
+        return true;
     }
 }

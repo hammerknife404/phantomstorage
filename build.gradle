@@ -42,8 +42,6 @@ configurations.all {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
-    // JEI for dev testing only — not required at runtime for end users.
-    // Download from https://www.curseforge.com/minecraft/mc-mods/jei and place the jar here.
     runtimeOnly files('jei-1.21.1-neoforge-19.27.0.340.jar')
 }
 
