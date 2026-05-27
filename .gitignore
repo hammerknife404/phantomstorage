@@ -1,0 +1,27 @@
+# Gradle build outputs
+/build/
+/.gradle/
+
+# Dev-only JEI jar (not required by end users)
+jei-*.jar
+
+# IDE files
+/.idea/
+*.iml
+*.ipr
+*.iws
+/.eclipse/
+.classpath
+.project
+.settings/
+
+# NeoForge run directories (generated at dev-time, not source)
+/run/
+/runs/
+
+# Claude Code local settings
+/.claude/
+
+# OS
+.DS_Store
+Thumbs.db

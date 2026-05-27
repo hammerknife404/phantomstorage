@@ -1,0 +1,12 @@
+{
+    "itemGroup.phantomstorage": "Phantom Storage",
+    "entity.phantomstorage.phantom_chest": "Phantom Chest",
+    "item.phantomstorage.phantom_chest_summoner": "Phantom Chest Summoner",
+
+    "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.",
+    "tooltip.phantomstorage.summoner.inactive": "§7Right-click to summon your Phantom Chest.",
+
+    "message.phantomstorage.summoned": "Phantom Chest summoned.",
+    "message.phantomstorage.dismissed": "Phantom Chest dismissed.",
+    "message.phantomstorage.not_owner": "This chest belongs to someone else."
+}
