@@ -16,7 +16,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -75,15 +74,15 @@ public class PhantomChestSummonerItem extends Item {
             if (chest == null) return InteractionResultHolder.fail(stack);
 
             chest.setOwnerUUID(player.getUUID());
-            // Spawn 2.5 blocks behind the player on the horizontal plane so it appears
-            // at arm's length, consistent with the follow hover distance.
-            Vec3 look = player.getLookAngle();
-            double hLen = Math.sqrt(look.x * look.x + look.z * look.z);
-            Vec3 behind = hLen > 1e-4
-                    ? new Vec3(-look.x / hLen * 2.5, 0, -look.z / hLen * 2.5)
-                    : new Vec3(0, 0, 2.5);
-            Vec3 spawnPos = player.position().add(behind).add(0, 1.2, 0);
-            chest.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, 0f, 0f);
+            // Pick a random starting angle so the chest appears at orbit distance
+            // immediately, in a random direction — no look-direction bias.
+            double initAngle = serverLevel.random.nextDouble() * Math.PI * 2;
+            chest.setInitialOrbitAngle(initAngle);
+            chest.moveTo(
+                    player.getX() + Math.cos(initAngle) * PhantomChestEntity.ORBIT_RADIUS,
+                    player.getY() + PhantomChestEntity.ORBIT_Y_OFFSET,
+                    player.getZ() + Math.sin(initAngle) * PhantomChestEntity.ORBIT_RADIUS,
+                    0f, 0f);
             chest.loadInventoryFrom(player);
             serverLevel.addFreshEntity(chest);
             player.getPersistentData().putUUID(PhantomChestEntity.KEY_ENTITY_ID, chest.getUUID());
@@ -133,16 +132,16 @@ public class PhantomChestSummonerItem extends Item {
     }
 
     /**
-     * Clears the ChestActive flag on the first summoner found in the player's
-     * inventory. Called by dimension-change and similar events that discard the
-     * chest entity so the tooltip stays in sync with reality.
+     * Clears the ChestActive flag on every summoner found in the player's
+     * main inventory and offhand. Called by dimension-change and similar events
+     * that discard the chest entity so the tooltip stays in sync with reality.
      */
     public static void deactivateInInventory(Player player) {
         for (ItemStack s : player.getInventory().items) {
-            if (s.getItem() instanceof PhantomChestSummonerItem) {
-                setActive(s, false);
-                return;
-            }
+            if (s.getItem() instanceof PhantomChestSummonerItem) setActive(s, false);
+        }
+        for (ItemStack s : player.getInventory().offhand) {
+            if (s.getItem() instanceof PhantomChestSummonerItem) setActive(s, false);
         }
     }
 

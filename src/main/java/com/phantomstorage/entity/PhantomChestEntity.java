@@ -22,7 +22,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
@@ -37,19 +36,32 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     /** Key used to store the chest entity's UUID in the owner's PersistentData for O(1) lookup. */
     public static final String KEY_ENTITY_ID = "PhantomChest.EntityId";
 
-    // Direct follow-movement constants (no A* pathfinding)
-    /** Hover point: 2.5 blocks behind the player (horizontal), 1.2 blocks up. */
-    private static final double HOVER_DIST         = 2.5;
-    private static final double HOVER_Y_OFFSET     = 1.2;
-    /** Dead-zone around the hover point — chest won't micro-correct inside this radius. */
-    private static final double MIN_FOLLOW_DIST_SQ = 0.5 * 0.5;
-    private static final double MAX_FOLLOW_DIST_SQ = 20.0 * 20.0; // snap-teleport threshold
-    private static final double FOLLOW_SPEED       = 0.3;          // blocks per tick (~6 b/s)
+    // ── Orbit / follow constants ──────────────────────────────────────────────
+    /** Radius of the idle orbit circle around the player (blocks). */
+    public  static final double ORBIT_RADIUS    = 4.0;
+    /** Height above the player's foot position the chest hovers at. */
+    public  static final double ORBIT_Y_OFFSET  = 1.5;
+    /** Angular speed of the orbit (rad/tick). Full loop ≈ 350 ticks ≈ 17.5 s. */
+    private static final double ORBIT_SPEED_RAD = 0.018;
+    /** Amplitude of the vertical bob (blocks). */
+    private static final double BOB_AMPLITUDE   = 0.18;
+    /** Angular frequency of the vertical bob (rad/tick). Cycle ≈ 7.9 s. */
+    private static final double BOB_SPEED_RAD   = 0.04;
+    /**
+     * Lerp factor applied each tick to blend the chest toward its orbit target.
+     * Lower = lazier / more floaty (bee-like). 0.06 ≈ 6 % of gap per tick.
+     */
+    private static final double LERP_FACTOR     = 0.06;
+    /** Teleport threshold — only snap when genuinely out of range (tp, login). */
+    private static final double SNAP_DIST_SQ    = 20.0 * 20.0;
 
     private static final EntityDataAccessor<Optional<UUID>> OWNER_UUID =
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Integer> OPEN_COUNT =
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
+
+    /** Current angle (radians) in the orbit circle around the owner. Persisted to NBT. */
+    private double orbitAngle = 0.0;
 
     private final SimpleContainer inventory = new SimpleContainer(INVENTORY_SIZE);
 
@@ -95,6 +107,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public Player getOwner() {
         UUID uuid = getOwnerUUID();
         return uuid != null ? this.level().getPlayerByUUID(uuid) : null;
+    }
+
+    /** Sets the starting orbit angle at summon time so spawn position matches. */
+    public void setInitialOrbitAngle(double angle) {
+        this.orbitAngle = angle;
     }
 
     // ── Inventory ─────────────────────────────────────────────────────────────
@@ -219,37 +236,48 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     }
 
     /**
-     * Moves the chest toward the hover-point behind the owner each tick.
-     * Uses direct linear stepping instead of A* pathfinding — appropriate for
-     * an entity that always moves through open air next to its owner.
-     * Complexity: O(1) per tick per chest.
+     * Bee / parrot-style lazy orbit around the owner.
+     *
+     * <p>Each tick the orbit angle advances by {@link #ORBIT_SPEED_RAD}, tracing a
+     * horizontal circle of radius {@link #ORBIT_RADIUS} centred on the player.  A slow
+     * sine wave on Y gives a gentle vertical bob.  The chest position is blended toward
+     * that target with a small lerp factor ({@link #LERP_FACTOR}) so movement feels
+     * floaty and unhurried — the chest drifts rather than steps.
+     *
+     * <p>The orbit is independent of the player's look direction, so the chest never
+     * snaps to "behind" the player; it just continues its lazy circle wherever the
+     * player happens to be facing.
+     *
+     * <p>A hard teleport fires only when the chest is genuinely out of range
+     * ({@link #SNAP_DIST_SQ}), e.g. after a {@code /tp} or on first login.
      */
     private void followOwner() {
         Player owner = getOwner();
         if (owner == null) return;
 
-        // Project the look vector onto the horizontal plane so pitch never pulls
-        // the hover point underground (e.g. when the player looks straight up).
-        Vec3 look = owner.getLookAngle();
-        double hLen = Math.sqrt(look.x * look.x + look.z * look.z);
-        Vec3 behind = hLen > 1e-4
-                ? new Vec3(-look.x / hLen * HOVER_DIST, 0, -look.z / hLen * HOVER_DIST)
-                : new Vec3(0, 0, HOVER_DIST); // looking straight up/down — offset north
-        Vec3 target = owner.position().add(behind).add(0, HOVER_Y_OFFSET, 0);
+        // Advance the orbit angle continuously
+        orbitAngle = (orbitAngle + ORBIT_SPEED_RAD) % (Math.PI * 2);
 
-        double distSq = this.distanceToSqr(target.x, target.y, target.z);
-        if (distSq <= MIN_FOLLOW_DIST_SQ) return; // already in position — nothing to do
+        // Target point: orbit circle + vertical bob
+        double targetX = owner.getX() + Math.cos(orbitAngle) * ORBIT_RADIUS;
+        double targetZ = owner.getZ() + Math.sin(orbitAngle) * ORBIT_RADIUS;
+        // Use orbitAngle as the bob phase base so we avoid int overflow on tickCount.
+        // Multiply by a prime-ish ratio to decouple bob from orbit visually.
+        double targetY = owner.getY() + ORBIT_Y_OFFSET
+                + BOB_AMPLITUDE * Math.sin(orbitAngle * 3.7);
 
-        if (distSq > MAX_FOLLOW_DIST_SQ) {
-            // Player sprinted or teleported far away — snap rather than chase
-            this.teleportTo(target.x, target.y, target.z);
+        // Hard snap only when genuinely out of range (teleport / login gap)
+        if (this.distanceToSqr(targetX, targetY, targetZ) > SNAP_DIST_SQ) {
+            this.teleportTo(targetX, targetY, targetZ);
             return;
         }
 
-        // Clamp step length so the chest never overshoots on the final approach
-        double step = Math.min(Math.sqrt(distSq), FOLLOW_SPEED);
-        Vec3 dir = target.subtract(this.position()).normalize().scale(step);
-        this.setPos(this.getX() + dir.x, this.getY() + dir.y, this.getZ() + dir.z);
+        // Lazy lerp — chest drifts toward target, giving floaty bee-like motion
+        this.setPos(
+                this.getX() + (targetX - this.getX()) * LERP_FACTOR,
+                this.getY() + (targetY - this.getY()) * LERP_FACTOR,
+                this.getZ() + (targetZ - this.getZ()) * LERP_FACTOR
+        );
         this.getLookControl().setLookAt(owner, 10f, 10f);
     }
 
@@ -279,6 +307,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             tag.putUUID("Owner", getOwnerUUID());
         }
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
+        tag.putDouble("OrbitAngle", orbitAngle);
     }
 
     @Override
@@ -289,6 +318,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());
+        }
+        if (tag.contains("OrbitAngle")) {
+            orbitAngle = tag.getDouble("OrbitAngle");
         }
     }
 
