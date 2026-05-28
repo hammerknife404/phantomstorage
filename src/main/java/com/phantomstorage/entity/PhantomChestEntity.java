@@ -38,7 +38,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public static final String KEY_ENTITY_ID = "PhantomChest.EntityId";
 
     // Direct follow-movement constants (no A* pathfinding)
-    private static final double MIN_FOLLOW_DIST_SQ = 2.5 * 2.5;   // personal-space radius
+    /** Hover point: 2.5 blocks behind the player (horizontal), 1.2 blocks up. */
+    private static final double HOVER_DIST         = 2.5;
+    private static final double HOVER_Y_OFFSET     = 1.2;
+    /** Dead-zone around the hover point — chest won't micro-correct inside this radius. */
+    private static final double MIN_FOLLOW_DIST_SQ = 0.5 * 0.5;
     private static final double MAX_FOLLOW_DIST_SQ = 20.0 * 20.0; // snap-teleport threshold
     private static final double FOLLOW_SPEED       = 0.3;          // blocks per tick (~6 b/s)
 
@@ -224,10 +228,14 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         Player owner = getOwner();
         if (owner == null) return;
 
-        // Hover just behind and slightly above the player's shoulder (same offset as before)
-        Vec3 target = owner.position()
-                .add(owner.getLookAngle().scale(-1.5))
-                .add(0, 1.2, 0);
+        // Project the look vector onto the horizontal plane so pitch never pulls
+        // the hover point underground (e.g. when the player looks straight up).
+        Vec3 look = owner.getLookAngle();
+        double hLen = Math.sqrt(look.x * look.x + look.z * look.z);
+        Vec3 behind = hLen > 1e-4
+                ? new Vec3(-look.x / hLen * HOVER_DIST, 0, -look.z / hLen * HOVER_DIST)
+                : new Vec3(0, 0, HOVER_DIST); // looking straight up/down — offset north
+        Vec3 target = owner.position().add(behind).add(0, HOVER_Y_OFFSET, 0);
 
         double distSq = this.distanceToSqr(target.x, target.y, target.z);
         if (distSq <= MIN_FOLLOW_DIST_SQ) return; // already in position — nothing to do

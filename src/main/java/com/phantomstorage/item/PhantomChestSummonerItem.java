@@ -16,6 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -39,10 +40,19 @@ public class PhantomChestSummonerItem extends Item {
         super(props);
     }
 
+    /** Cooldown applied on every use (summon or dismiss). 3 seconds = 60 ticks. */
+    private static final int USE_COOLDOWN_TICKS = 60;
+
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (level.isClientSide) return InteractionResultHolder.success(stack);
+
+        // Respect cooldown on the server side as well (client UI enforces it visually,
+        // but a vanilla check here guards against packet-level bypasses).
+        if (!player.getAbilities().instabuild && player.getCooldowns().isOnCooldown(stack.getItem())) {
+            return InteractionResultHolder.fail(stack);
+        }
 
         ServerLevel serverLevel = (ServerLevel) level;
         PhantomChestEntity existing = findPlayerChest(serverLevel.getServer(), player);
@@ -65,7 +75,15 @@ public class PhantomChestSummonerItem extends Item {
             if (chest == null) return InteractionResultHolder.fail(stack);
 
             chest.setOwnerUUID(player.getUUID());
-            chest.moveTo(player.getX(), player.getY() + 1.5, player.getZ(), 0f, 0f);
+            // Spawn 2.5 blocks behind the player on the horizontal plane so it appears
+            // at arm's length, consistent with the follow hover distance.
+            Vec3 look = player.getLookAngle();
+            double hLen = Math.sqrt(look.x * look.x + look.z * look.z);
+            Vec3 behind = hLen > 1e-4
+                    ? new Vec3(-look.x / hLen * 2.5, 0, -look.z / hLen * 2.5)
+                    : new Vec3(0, 0, 2.5);
+            Vec3 spawnPos = player.position().add(behind).add(0, 1.2, 0);
+            chest.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, 0f, 0f);
             chest.loadInventoryFrom(player);
             serverLevel.addFreshEntity(chest);
             player.getPersistentData().putUUID(PhantomChestEntity.KEY_ENTITY_ID, chest.getUUID());
@@ -74,6 +92,11 @@ public class PhantomChestSummonerItem extends Item {
                     Component.translatable("message.phantomstorage.summoned"), true);
         }
 
+        // Apply cooldown after every successful use (summon or dismiss).
+        // The vanilla hotbar renders a grey sweep overlay automatically.
+        if (!player.getAbilities().instabuild) {
+            player.getCooldowns().addCooldown(stack.getItem(), USE_COOLDOWN_TICKS);
+        }
         return InteractionResultHolder.consume(stack);
     }
 
