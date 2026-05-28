@@ -110,6 +110,9 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return true;
+        // entity is null on the client side — always pass there.
+        // On the server, close the menu the moment the entity is removed
+        // (player death, /kill, crash-reload, etc.).
+        return entity == null || entity.isAlive();
     }
 }

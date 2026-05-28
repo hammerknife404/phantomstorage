@@ -2,6 +2,7 @@ package com.phantomstorage.events;
 
 import com.phantomstorage.PhantomStorageMod;
 import com.phantomstorage.entity.PhantomChestEntity;
+import com.phantomstorage.item.PhantomChestSummonerItem;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -52,5 +53,7 @@ public class DimensionEvents {
 
         // Remove the stale ID — the player must re-summon in the new dimension.
         data.remove(PhantomChestEntity.KEY_ENTITY_ID);
+        // Keep the tooltip in sync: chest is gone, so clear the "active" flag.
+        PhantomChestSummonerItem.deactivateInInventory(event.getEntity());
     }
 }

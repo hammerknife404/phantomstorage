@@ -109,6 +109,20 @@ public class PhantomChestSummonerItem extends Item {
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
     }
 
+    /**
+     * Clears the ChestActive flag on the first summoner found in the player's
+     * inventory. Called by dimension-change and similar events that discard the
+     * chest entity so the tooltip stays in sync with reality.
+     */
+    public static void deactivateInInventory(Player player) {
+        for (ItemStack s : player.getInventory().items) {
+            if (s.getItem() instanceof PhantomChestSummonerItem) {
+                setActive(s, false);
+                return;
+            }
+        }
+    }
+
     public static boolean isActive(ItemStack stack) {
         return readTag(stack).getBoolean(KEY_ACTIVE);
     }
