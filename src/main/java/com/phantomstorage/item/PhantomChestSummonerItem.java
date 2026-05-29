@@ -74,14 +74,12 @@ public class PhantomChestSummonerItem extends Item {
             if (chest == null) return InteractionResultHolder.fail(stack);
 
             chest.setOwnerUUID(player.getUUID());
-            // Pick a random starting angle so the chest appears at orbit distance
-            // immediately, in a random direction — no look-direction bias.
-            double initAngle = serverLevel.random.nextDouble() * Math.PI * 2;
-            chest.setInitialOrbitAngle(initAngle);
+            // Spawn at a random direction from the player so there's no look-direction bias.
+            double spawnAngle = serverLevel.random.nextDouble() * Math.PI * 2;
             chest.moveTo(
-                    player.getX() + Math.cos(initAngle) * PhantomChestEntity.ORBIT_RADIUS,
-                    player.getY() + PhantomChestEntity.ORBIT_Y_OFFSET,
-                    player.getZ() + Math.sin(initAngle) * PhantomChestEntity.ORBIT_RADIUS,
+                    player.getX() + Math.cos(spawnAngle) * PhantomChestEntity.SPAWN_OFFSET_H,
+                    player.getY() + PhantomChestEntity.HOVER_Y_OFFSET,
+                    player.getZ() + Math.sin(spawnAngle) * PhantomChestEntity.SPAWN_OFFSET_H,
                     0f, 0f);
             chest.loadInventoryFrom(player);
             serverLevel.addFreshEntity(chest);
