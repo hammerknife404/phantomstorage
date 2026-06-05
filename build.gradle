@@ -42,6 +42,7 @@ configurations.all {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
+    compileOnly files('jei-1.21.1-neoforge-19.27.0.340.jar')
     runtimeOnly files('jei-1.21.1-neoforge-19.27.0.340.jar')
 }
 

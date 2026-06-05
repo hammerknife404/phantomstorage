@@ -27,6 +27,10 @@ public class DimensionEvents {
             newData.put("PhantomChestInventory",
                     original.getList("PhantomChestInventory", 10).copy());
         }
+        if (original.contains(PhantomChestEntity.KEY_FILTER)) {
+            newData.put(PhantomChestEntity.KEY_FILTER,
+                    original.getList(PhantomChestEntity.KEY_FILTER, 10).copy());
+        }
         if (original.hasUUID(PhantomChestEntity.KEY_ENTITY_ID)) {
             newData.putUUID(PhantomChestEntity.KEY_ENTITY_ID,
                     original.getUUID(PhantomChestEntity.KEY_ENTITY_ID));
@@ -47,6 +51,7 @@ public class DimensionEvents {
             Entity e = oldLevel.getEntity(entityId);
             if (e instanceof PhantomChestEntity chest) {
                 chest.saveInventoryTo(event.getEntity());
+                chest.saveFilterTo(event.getEntity());
                 chest.discard();
             }
         }

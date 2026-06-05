@@ -59,6 +59,7 @@ public class PhantomChestSummonerItem extends Item {
         if (existing != null && existing.level() == serverLevel) {
             // Chest is here — dismiss it
             existing.saveInventoryTo(player);
+            existing.saveFilterTo(player);
             existing.discard();
             player.getPersistentData().remove(PhantomChestEntity.KEY_ENTITY_ID);
             setActive(stack, false);
@@ -68,6 +69,7 @@ public class PhantomChestSummonerItem extends Item {
             // Chest is in another dimension or doesn't exist — discard stray copy and summon here
             if (existing != null) {
                 existing.saveInventoryTo(player);
+                existing.saveFilterTo(player);
                 existing.discard();
             }
             PhantomChestEntity chest = ModEntities.PHANTOM_CHEST.get().create(serverLevel);
@@ -82,6 +84,7 @@ public class PhantomChestSummonerItem extends Item {
                     player.getZ() + Math.sin(spawnAngle) * PhantomChestEntity.SPAWN_OFFSET_H,
                     0f, 0f);
             chest.loadInventoryFrom(player);
+            chest.loadFilterFrom(player);
             serverLevel.addFreshEntity(chest);
             player.getPersistentData().putUUID(PhantomChestEntity.KEY_ENTITY_ID, chest.getUUID());
             setActive(stack, true);

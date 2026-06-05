@@ -1,6 +1,7 @@
 package com.phantomstorage.entity;
 
 import com.phantomstorage.inventory.PhantomChestMenu;
+import com.phantomstorage.inventory.VoidFilterContainer;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -62,7 +63,10 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     private static final EntityDataAccessor<Integer> OPEN_COUNT =
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
 
-    private final SimpleContainer inventory = new SimpleContainer(INVENTORY_SIZE);
+    public static final String KEY_FILTER = "PhantomChestFilter";
+
+    private final SimpleContainer filterSlots = new SimpleContainer(9);
+    private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
 
     public PhantomChestEntity(EntityType<? extends PhantomChestEntity> type, Level level) {
         super(type, level);
@@ -147,8 +151,52 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             CompoundTag slot = list.getCompound(i);
             int index = slot.getByte("Slot") & 0xFF;
             if (index < inventory.getContainerSize()) {
-                ItemStack.parse(provider, slot).ifPresent(s -> inventory.setItem(index, s));
+                // loadItem bypasses the void filter so saved items are always restored
+                ItemStack.parse(provider, slot).ifPresent(s -> inventory.loadItem(index, s));
             }
+        }
+    }
+
+    // ── Filter ────────────────────────────────────────────────────────────────
+
+    public SimpleContainer getFilterSlots() {
+        return filterSlots;
+    }
+
+    public ListTag saveFilter(HolderLookup.Provider provider) {
+        ListTag list = new ListTag();
+        for (int i = 0; i < filterSlots.getContainerSize(); i++) {
+            ItemStack stack = filterSlots.getItem(i);
+            if (!stack.isEmpty()) {
+                CompoundTag slot = new CompoundTag();
+                slot.putByte("Slot", (byte) i);
+                list.add(stack.save(provider, slot));
+            }
+        }
+        return list;
+    }
+
+    public void loadFilter(ListTag list, HolderLookup.Provider provider) {
+        filterSlots.clearContent();
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag slot = list.getCompound(i);
+            int index = slot.getByte("Slot") & 0xFF;
+            if (index < filterSlots.getContainerSize()) {
+                ItemStack.parse(provider, slot).ifPresent(s -> filterSlots.setItem(index, s));
+            }
+        }
+    }
+
+    public void saveFilterTo(Player player) {
+        player.getPersistentData().put(KEY_FILTER, saveFilter(this.level().registryAccess()));
+    }
+
+    public void loadFilterFrom(Player player) {
+        CompoundTag data = player.getPersistentData();
+        if (data.contains(KEY_FILTER)) {
+            loadFilter(data.getList(KEY_FILTER, 10), this.level().registryAccess());
+        } else {
+            filterSlots.clearContent();
         }
     }
 
@@ -202,7 +250,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player) {
         if (!player.getUUID().equals(getOwnerUUID())) return null;
-        return new PhantomChestMenu(id, playerInventory, inventory, this);
+        return new PhantomChestMenu(id, playerInventory, inventory, filterSlots, this);
     }
 
     // ── Interaction ───────────────────────────────────────────────────────────
@@ -272,6 +320,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             tag.putUUID("Owner", getOwnerUUID());
         }
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
+        tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
     }
 
     @Override
@@ -282,6 +331,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());
+        }
+        if (tag.contains("VoidFilter")) {
+            loadFilter(tag.getList("VoidFilter", 10), this.level().registryAccess());
         }
     }
 

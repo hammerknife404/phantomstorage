@@ -8,5 +8,9 @@
 
     "message.phantomstorage.summoned": "Phantom Chest summoned.",
     "message.phantomstorage.dismissed": "Phantom Chest dismissed.",
-    "message.phantomstorage.not_owner": "This chest belongs to someone else."
+    "message.phantomstorage.not_owner": "This chest belongs to someone else.",
+
+    "container.phantomstorage.tab.chest": "Chest",
+    "container.phantomstorage.tab.crafting": "Craft",
+    "container.phantomstorage.tab.filter": "Void Filter"
 }
