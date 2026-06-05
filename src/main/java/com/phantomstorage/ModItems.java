@@ -2,6 +2,7 @@ package com.phantomstorage;
 
 import com.phantomstorage.item.PhantomChestSummonerItem;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -23,4 +24,8 @@ public class ModItems {
     public static final DeferredHolder<Item, PhantomChestSummonerItem> PHANTOM_CHEST_SUMMONER_SUPREME =
             ITEMS.register("phantom_chest_summoner_supreme",
                     () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 2));
+
+    public static final DeferredHolder<Item, BlockItem> ETHEREAL_LINK =
+            ITEMS.register("ethereal_link",
+                    () -> new BlockItem(ModBlocks.ETHEREAL_LINK.get(), new Item.Properties()));
 }

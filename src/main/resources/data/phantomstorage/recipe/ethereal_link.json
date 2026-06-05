@@ -1,0 +1,17 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "IEI",
+        "EOE",
+        "IEI"
+    ],
+    "key": {
+        "I": { "item": "minecraft:iron_ingot" },
+        "E": { "item": "minecraft:ender_pearl" },
+        "O": { "item": "minecraft:obsidian" }
+    },
+    "result": {
+        "id": "phantomstorage:ethereal_link",
+        "count": 1
+    }
+}

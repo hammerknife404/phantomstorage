@@ -50,8 +50,8 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public static final int FILTER_X         = 61;
     public static final int FILTER_Y         = 35;
 
-    // ── State — index 0 = active tab, index 1 = entity tier ──────────────────
-    private final ContainerData uiData = new SimpleContainerData(2);
+    // ── State — [0]=active tab, [1]=entity tier, [2]=flow state (0/1/2) ──────
+    private final ContainerData uiData = new SimpleContainerData(3);
 
     private final Container chestContainer;
     private final SimpleContainer filterContainer;
@@ -133,12 +133,17 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     // ── Tab ───────────────────────────────────────────────────────────────────
 
-    public int getActiveTab() {
-        return uiData.get(0);
-    }
+    public int getActiveTab()  { return uiData.get(0); }
+    public int getEntityTier() { return uiData.get(1); }
+    public int getFlowState()  { return uiData.get(2); }
 
-    public int getEntityTier() {
-        return uiData.get(1);
+    @Override
+    public void broadcastChanges() {
+        if (entity != null) {
+            uiData.set(1, entity.getTier());
+            uiData.set(2, entity.getFlowState());
+        }
+        super.broadcastChanges();
     }
 
     @Override

@@ -20,6 +20,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.PHANTOM_CHEST_SUMMONER.get());
                         output.accept(ModItems.PHANTOM_CHEST_SUMMONER_UPGRADED.get());
                         output.accept(ModItems.PHANTOM_CHEST_SUMMONER_SUPREME.get());
+                        output.accept(ModItems.ETHEREAL_LINK.get());
                     })
                     .build());
 }
