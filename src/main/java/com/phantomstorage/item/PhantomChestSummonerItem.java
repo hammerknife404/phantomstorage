@@ -35,8 +35,21 @@ public class PhantomChestSummonerItem extends Item {
 
     private static final String KEY_ACTIVE = "ChestActive";
 
-    public PhantomChestSummonerItem(Properties props) {
+    /** 0 = base (chest only), 1 = upgraded (+ crafting), 2 = supreme (+ void filter) */
+    private final int tier;
+
+    public PhantomChestSummonerItem(Properties props, int tier) {
         super(props);
+        this.tier = tier;
+    }
+
+    public int getTier() {
+        return tier;
+    }
+
+    @Override
+    public boolean isFoil(ItemStack stack) {
+        return tier > 0;
     }
 
     /** Cooldown applied on every use (summon or dismiss). 3 seconds = 60 ticks. */
@@ -76,6 +89,7 @@ public class PhantomChestSummonerItem extends Item {
             if (chest == null) return InteractionResultHolder.fail(stack);
 
             chest.setOwnerUUID(player.getUUID());
+            chest.setTier(this.tier);
             // Spawn at a random direction from the player so there's no look-direction bias.
             double spawnAngle = serverLevel.random.nextDouble() * Math.PI * 2;
             chest.moveTo(

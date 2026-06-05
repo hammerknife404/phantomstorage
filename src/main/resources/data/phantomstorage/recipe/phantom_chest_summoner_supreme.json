@@ -1,0 +1,13 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        { "item": "phantomstorage:phantom_chest_summoner_upgraded" },
+        { "item": "minecraft:lava_bucket" },
+        { "item": "minecraft:lava_bucket" },
+        { "item": "minecraft:lava_bucket" }
+    ],
+    "result": {
+        "id": "phantomstorage:phantom_chest_summoner_supreme",
+        "count": 1
+    }
+}

@@ -50,8 +50,8 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public static final int FILTER_X         = 61;
     public static final int FILTER_Y         = 35;
 
-    // ── State ─────────────────────────────────────────────────────────────────
-    private final ContainerData tabData = new SimpleContainerData(1);
+    // ── State — index 0 = active tab, index 1 = entity tier ──────────────────
+    private final ContainerData uiData = new SimpleContainerData(2);
 
     private final Container chestContainer;
     private final SimpleContainer filterContainer;
@@ -74,7 +74,8 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         this.craftSlots       = new TransientCraftingContainer(this, 3, 3);
 
         checkContainerSize(chestContainer, CHEST_SIZE);
-        addDataSlots(tabData);
+        if (entity != null) uiData.set(1, entity.getTier());
+        addDataSlots(uiData);
 
         addChestSlots();
         addCraftingSlots();
@@ -133,13 +134,25 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     // ── Tab ───────────────────────────────────────────────────────────────────
 
     public int getActiveTab() {
-        return tabData.get(0);
+        return uiData.get(0);
+    }
+
+    public int getEntityTier() {
+        return uiData.get(1);
     }
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (id >= TAB_CHEST && id <= TAB_FILTER) {
-            tabData.set(0, id);
+        if (id == TAB_CHEST) {
+            uiData.set(0, TAB_CHEST);
+            return true;
+        }
+        if (id == TAB_CRAFT && getEntityTier() >= 1) {
+            uiData.set(0, TAB_CRAFT);
+            return true;
+        }
+        if (id == TAB_FILTER && getEntityTier() >= 2) {
+            uiData.set(0, TAB_FILTER);
             return true;
         }
         return false;

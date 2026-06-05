@@ -2,6 +2,8 @@
     "itemGroup.phantomstorage": "Phantom Storage",
     "entity.phantomstorage.phantom_chest": "Phantom Chest",
     "item.phantomstorage.phantom_chest_summoner": "Phantom Chest Summoner",
+    "item.phantomstorage.phantom_chest_summoner_upgraded": "Upgraded Phantom Chest Summoner",
+    "item.phantomstorage.phantom_chest_summoner_supreme": "Supreme Phantom Chest Summoner",
 
     "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.",
     "tooltip.phantomstorage.summoner.inactive": "§7Right-click to summon your Phantom Chest.",

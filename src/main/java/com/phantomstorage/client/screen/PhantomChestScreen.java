@@ -29,24 +29,32 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     @Override
     protected void init() {
         super.init();
+        rebuildTabButtons();
+    }
 
+    private void rebuildTabButtons() {
         int bw = 48, bh = 18;
         int by = topPos - 22;
+        int tier = menu.getEntityTier();
 
         addRenderableWidget(Button.builder(
                 Component.translatable("container.phantomstorage.tab.chest"),
                 b -> switchTab(PhantomChestMenu.TAB_CHEST))
                 .bounds(leftPos + 7, by, bw, bh).build());
 
-        addRenderableWidget(Button.builder(
+        Button craftBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.crafting"),
                 b -> switchTab(PhantomChestMenu.TAB_CRAFT))
-                .bounds(leftPos + 63, by, bw, bh).build());
+                .bounds(leftPos + 63, by, bw, bh).build();
+        craftBtn.active = tier >= 1;
+        addRenderableWidget(craftBtn);
 
-        addRenderableWidget(Button.builder(
+        Button filterBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.filter"),
                 b -> switchTab(PhantomChestMenu.TAB_FILTER))
-                .bounds(leftPos + 119, by, bw, bh).build());
+                .bounds(leftPos + 119, by, bw, bh).build();
+        filterBtn.active = tier >= 2;
+        addRenderableWidget(filterBtn);
     }
 
     private void switchTab(int tab) {

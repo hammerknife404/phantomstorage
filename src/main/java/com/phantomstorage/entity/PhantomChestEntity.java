@@ -62,6 +62,8 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Integer> OPEN_COUNT =
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> TIER =
+            SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
 
     public static final String KEY_FILTER = "PhantomChestFilter";
 
@@ -106,6 +108,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         super.defineSynchedData(builder);
         builder.define(OWNER_UUID, Optional.empty());
         builder.define(OPEN_COUNT, 0);
+        builder.define(TIER, 0);
     }
 
     // ── Owner ─────────────────────────────────────────────────────────────────
@@ -123,6 +126,16 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public Player getOwner() {
         UUID uuid = getOwnerUUID();
         return uuid != null ? this.level().getPlayerByUUID(uuid) : null;
+    }
+
+    // ── Tier ──────────────────────────────────────────────────────────────────
+
+    public int getTier() {
+        return this.entityData.get(TIER);
+    }
+
+    public void setTier(int tier) {
+        this.entityData.set(TIER, tier);
     }
 
     // ── Inventory ─────────────────────────────────────────────────────────────
@@ -319,6 +332,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         if (getOwnerUUID() != null) {
             tag.putUUID("Owner", getOwnerUUID());
         }
+        tag.putInt("Tier", getTier());
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
         tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
     }
@@ -328,6 +342,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         super.readAdditionalSaveData(tag);
         if (tag.hasUUID("Owner")) {
             setOwnerUUID(tag.getUUID("Owner"));
+        }
+        if (tag.contains("Tier")) {
+            setTier(tag.getInt("Tier"));
         }
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());

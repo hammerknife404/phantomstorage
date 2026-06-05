@@ -1,0 +1,12 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        { "item": "phantomstorage:phantom_chest_summoner" },
+        { "item": "minecraft:crafting_table" },
+        { "item": "minecraft:lever" }
+    ],
+    "result": {
+        "id": "phantomstorage:phantom_chest_summoner_upgraded",
+        "count": 1
+    }
+}
