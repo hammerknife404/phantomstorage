@@ -26,35 +26,40 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
         this.imageHeight = 222;
     }
 
+    private Button craftTabBtn;
+    private Button filterTabBtn;
+
     @Override
     protected void init() {
         super.init();
-        rebuildTabButtons();
-    }
 
-    private void rebuildTabButtons() {
         int bw = 48, bh = 18;
         int by = topPos - 22;
-        int tier = menu.getEntityTier();
 
         addRenderableWidget(Button.builder(
                 Component.translatable("container.phantomstorage.tab.chest"),
                 b -> switchTab(PhantomChestMenu.TAB_CHEST))
                 .bounds(leftPos + 7, by, bw, bh).build());
 
-        Button craftBtn = Button.builder(
+        craftTabBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.crafting"),
                 b -> switchTab(PhantomChestMenu.TAB_CRAFT))
                 .bounds(leftPos + 63, by, bw, bh).build();
-        craftBtn.active = tier >= 1;
-        addRenderableWidget(craftBtn);
+        addRenderableWidget(craftTabBtn);
 
-        Button filterBtn = Button.builder(
+        filterTabBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.filter"),
                 b -> switchTab(PhantomChestMenu.TAB_FILTER))
                 .bounds(leftPos + 119, by, bw, bh).build();
-        filterBtn.active = tier >= 2;
-        addRenderableWidget(filterBtn);
+        addRenderableWidget(filterTabBtn);
+    }
+
+    @Override
+    public void containerTick() {
+        super.containerTick();
+        int tier = menu.getEntityTier();
+        if (craftTabBtn  != null) craftTabBtn.active  = tier >= 1;
+        if (filterTabBtn != null) filterTabBtn.active = tier >= 2;
     }
 
     private void switchTab(int tab) {
