@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -72,6 +73,11 @@ public class PhantomWrenchItem extends Item {
                 Component.translatable("message.phantomstorage.wrench.already_linked",
                     existing.mode().name().toLowerCase()), true
             );
+        }
+
+        // Immediately push updated highlights to the client so the outline appears without delay
+        if (player instanceof ServerPlayer sp) {
+            chest.syncHighlightsTo(sp);
         }
 
         return InteractionResult.sidedSuccess(false);

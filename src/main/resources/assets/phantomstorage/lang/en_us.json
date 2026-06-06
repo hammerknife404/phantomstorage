@@ -23,6 +23,5 @@
     "message.phantomstorage.wrench.linked_output": "Storage linked as OUTPUT. Chest will push items here.",
     "message.phantomstorage.wrench.linked_input": "Storage linked as INPUT. Chest will pull items from here.",
     "message.phantomstorage.wrench.unlinked": "Storage unlinked.",
-    "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle.",
-
+    "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle."
 }

@@ -2,8 +2,12 @@ package com.phantomstorage.entity;
 
 import com.phantomstorage.DesignationMode;
 import com.phantomstorage.LinkedStorage;
+import com.phantomstorage.ModItems;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.VoidFilterContainer;
+import com.phantomstorage.network.LinkedStorageSyncPayload;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
@@ -199,6 +203,19 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             .findFirst().orElse(null);
     }
 
+    public void syncHighlightsTo(ServerPlayer sp) {
+        List<LinkedStorageSyncPayload.HighlightEntry> entries = linkedStorages.stream()
+            .filter(s -> s.dimension().equals(level().dimension()))
+            .map(s -> new LinkedStorageSyncPayload.HighlightEntry(s.pos(), s.mode()))
+            .toList();
+        PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries));
+    }
+
+    private static boolean isHoldingWrench(Player player) {
+        return player.getMainHandItem().is(ModItems.PHANTOM_WRENCH.get())
+            || player.getOffhandItem().is(ModItems.PHANTOM_WRENCH.get());
+    }
+
     // ── Filter ────────────────────────────────────────────────────────────────
 
     public SimpleContainer getFilterSlots() {
@@ -371,6 +388,12 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         if (stale != null) {
             linkedStorages.removeAll(stale);
+        }
+
+        // Sync highlights to owner if they're holding the wrench
+        Player owner = getOwner();
+        if (owner instanceof ServerPlayer sp && isHoldingWrench(owner)) {
+            syncHighlightsTo(sp);
         }
     }
 
