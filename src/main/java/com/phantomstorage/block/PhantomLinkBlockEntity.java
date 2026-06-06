@@ -135,22 +135,27 @@ public class PhantomLinkBlockEntity extends BlockEntity implements MenuProvider 
     private void doTransfer(ServerLevel serverLevel, BlockState state) {
         Direction facing = state.getValue(PhantomLinkBlock.FACING);
 
-        // Pull from back face
-        BlockPos inputPos = worldPosition.relative(facing.getOpposite());
-        IItemHandler inputHandler = serverLevel.getCapability(
-                Capabilities.ItemHandler.BLOCK, inputPos, facing);
-        if (inputHandler == null) return;
-
-        // Simulate extract
+        // Pull from any adjacent face except the output (front) face
+        IItemHandler chosenHandler = null;
+        int chosenSlot = -1;
         ItemStack toSend = ItemStack.EMPTY;
-        int sourceSlot = -1;
-        for (int slot = 0; slot < inputHandler.getSlots(); slot++) {
-            ItemStack sim = inputHandler.extractItem(slot, 1, true);
-            if (!sim.isEmpty()) {
-                toSend = sim.copy();
-                sourceSlot = slot;
-                break;
+
+        for (Direction dir : Direction.values()) {
+            if (dir == facing) continue; // skip the output face
+            BlockPos checkPos = worldPosition.relative(dir);
+            IItemHandler handler = serverLevel.getCapability(
+                    Capabilities.ItemHandler.BLOCK, checkPos, null);
+            if (handler == null) continue;
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack sim = handler.extractItem(slot, 1, true);
+                if (!sim.isEmpty()) {
+                    toSend = sim.copy();
+                    chosenHandler = handler;
+                    chosenSlot = slot;
+                    break;
+                }
             }
+            if (chosenHandler != null) break;
         }
         if (toSend.isEmpty()) return;
 
@@ -171,7 +176,7 @@ public class PhantomLinkBlockEntity extends BlockEntity implements MenuProvider 
             if (!(be instanceof PhantomLinkBlockEntity remote)) continue;
 
             if (remote.canAccept(toSend, remoteLevel)) {
-                ItemStack actual = inputHandler.extractItem(sourceSlot, 1, false);
+                ItemStack actual = chosenHandler.extractItem(chosenSlot, 1, false);
                 if (!actual.isEmpty()) {
                     remote.acceptItem(actual, remoteLevel);
                     credits -= CREDITS_PER_ITEM;
@@ -185,7 +190,7 @@ public class PhantomLinkBlockEntity extends BlockEntity implements MenuProvider 
         Direction facing = getBlockState().getValue(PhantomLinkBlock.FACING);
         BlockPos outputPos = worldPosition.relative(facing);
         IItemHandler handler = level.getCapability(
-                Capabilities.ItemHandler.BLOCK, outputPos, facing.getOpposite());
+                Capabilities.ItemHandler.BLOCK, outputPos, null);
         if (handler == null) return false;
         for (int slot = 0; slot < handler.getSlots(); slot++) {
             if (handler.insertItem(slot, stack, true).isEmpty()) return true;
@@ -197,7 +202,7 @@ public class PhantomLinkBlockEntity extends BlockEntity implements MenuProvider 
         Direction facing = getBlockState().getValue(PhantomLinkBlock.FACING);
         BlockPos outputPos = worldPosition.relative(facing);
         IItemHandler handler = level.getCapability(
-                Capabilities.ItemHandler.BLOCK, outputPos, facing.getOpposite());
+                Capabilities.ItemHandler.BLOCK, outputPos, null);
         if (handler == null) { spawnDrop(stack, level, outputPos); return; }
         for (int slot = 0; slot < handler.getSlots(); slot++) {
             stack = handler.insertItem(slot, stack, false);

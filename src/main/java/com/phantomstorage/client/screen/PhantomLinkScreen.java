@@ -40,7 +40,7 @@ public class PhantomLinkScreen extends AbstractContainerScreen<PhantomLinkMenu> 
     public PhantomLinkScreen(PhantomLinkMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
         this.imageWidth       = GRID_W + PAD * 2;
-        this.imageHeight      = GRID_H + PAD * 2 + 14; // 14 = title bar
+        this.imageHeight      = GRID_H + PAD * 2 + 14 + 20; // 14 = title bar, 20 = status label
         this.titleLabelX      = PAD;
         this.titleLabelY      = 5;
         this.inventoryLabelY  = 10000; // hide vanilla inventory label
@@ -111,19 +111,19 @@ public class PhantomLinkScreen extends AbstractContainerScreen<PhantomLinkMenu> 
     protected void renderLabels(GuiGraphics gfx, int mouseX, int mouseY) {
         gfx.drawString(font, title, titleLabelX, titleLabelY, 0x404040, false);
 
+        // Status label — positioned just below the button grid
+        int labelY = PAD + 14 + GRID_H + 6;
         if (!menu.isOwner()) {
             String msg = "Not the owner";
             gfx.drawString(font, msg,
                     imageWidth / 2 - font.width(msg) / 2,
-                    imageHeight - 10,
-                    0xFF4444, false);
+                    labelY, 0xFF4444, false);
         } else {
             int ch = menu.getChannel();
             String msg = ch < 0 ? "No channel set" : "Channel: " + ch;
             gfx.drawString(font, msg,
                     imageWidth / 2 - font.width(msg) / 2,
-                    imageHeight - 10,
-                    0x404040, false);
+                    labelY, 0x404040, false);
         }
     }
 
