@@ -84,6 +84,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
     public static final String KEY_FILTER = "PhantomChestFilter";
     public static final String KEY_LINKS  = "PhantomChestLinkedStorages";
+    public static final double TRANSFER_RANGE = 4.0;
 
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
@@ -405,7 +406,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             }
 
             double distSq = Vec3.atCenterOf(link.pos()).distanceToSqr(position());
-            if (distSq > 16.0) continue;
+            if (distSq > TRANSFER_RANGE * TRANSFER_RANGE) continue;
 
             if (link.mode() == DesignationMode.OUTPUT) {
                 pushItemsTo(handler);

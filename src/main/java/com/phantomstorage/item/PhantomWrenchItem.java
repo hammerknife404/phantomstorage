@@ -56,6 +56,11 @@ public class PhantomWrenchItem extends Item {
             .findFirst().orElse(null);
 
         if (existing == null) {
+            if (links.size() >= 16) {
+                player.displayClientMessage(
+                    Component.translatable("message.phantomstorage.wrench.max_links"), true);
+                return InteractionResult.FAIL;
+            }
             links.add(new LinkedStorage(pos, dim, DesignationMode.OUTPUT));
             player.displayClientMessage(
                 Component.translatable("message.phantomstorage.wrench.linked_output"), true);
