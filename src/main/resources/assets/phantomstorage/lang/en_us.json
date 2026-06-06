@@ -25,6 +25,4 @@
     "message.phantomstorage.wrench.unlinked": "Storage unlinked.",
     "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle.",
 
-    "block.phantomstorage.phantom_link": "Phantom Link",
-    "tooltip.phantomstorage.phantom_link": "Place to link with your Phantom Chest. Automatically bound to the placer. Supports hoppers and item pipes."
 }

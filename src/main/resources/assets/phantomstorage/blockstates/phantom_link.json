@@ -1,8 +1,0 @@
-{
-    "variants": {
-        "facing=north": { "model": "phantomstorage:block/phantom_link" },
-        "facing=south": { "model": "phantomstorage:block/phantom_link", "y": 180 },
-        "facing=west":  { "model": "phantomstorage:block/phantom_link", "y": 270 },
-        "facing=east":  { "model": "phantomstorage:block/phantom_link", "y": 90 }
-    }
-}
