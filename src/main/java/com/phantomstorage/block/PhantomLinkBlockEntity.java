@@ -8,6 +8,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -98,7 +99,17 @@ public class PhantomLinkBlockEntity extends BlockEntity {
         this.channel = color;
         if (level != null && !level.isClientSide()) registerSelf();
         setChanged();
-        if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        // Push BE data immediately (carries channel for tint), then queue a block update so
+        // the client rebuilds chunk geometry with the fresh channel already in place.
+        if (level instanceof ServerLevel serverLevel) {
+            ClientboundBlockEntityDataPacket pkt = getUpdatePacket();
+            if (pkt != null) {
+                for (ServerPlayer player : serverLevel.players()) {
+                    player.connection.send(pkt);
+                }
+            }
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+        }
     }
 
     @Nullable public DyeColor getChannel()   { return channel; }
