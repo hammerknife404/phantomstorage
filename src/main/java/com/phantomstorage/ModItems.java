@@ -25,7 +25,7 @@ public class ModItems {
             ITEMS.register("phantom_chest_summoner_supreme",
                     () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 2));
 
-    public static final DeferredHolder<Item, BlockItem> ETHEREAL_LINK =
-            ITEMS.register("ethereal_link",
-                    () -> new BlockItem(ModBlocks.ETHEREAL_LINK.get(), new Item.Properties()));
+    public static final DeferredHolder<Item, BlockItem> PHANTOM_LINK =
+            ITEMS.register("phantom_link",
+                    () -> new BlockItem(ModBlocks.PHANTOM_LINK.get(), new Item.Properties()));
 }

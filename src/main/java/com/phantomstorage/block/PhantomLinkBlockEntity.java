@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 
-public class EtherealLinkBlockEntity extends BlockEntity {
+public class PhantomLinkBlockEntity extends BlockEntity {
 
     // 80 credits/tick × 20 ticks = 1600; 1600 / 100 per item = 16 items/sec
     private static final int CREDITS_PER_TICK = 80;
@@ -96,8 +96,8 @@ public class EtherealLinkBlockEntity extends BlockEntity {
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    public EtherealLinkBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ETHEREAL_LINK.get(), pos, state);
+    public PhantomLinkBlockEntity(BlockPos pos, BlockState state) {
+        super(ModBlockEntities.PHANTOM_LINK.get(), pos, state);
     }
 
     public IItemHandler getItemHandler() {
@@ -153,7 +153,7 @@ public class EtherealLinkBlockEntity extends BlockEntity {
     // ── Server tick ───────────────────────────────────────────────────────────
 
     public static void serverTick(Level level, BlockPos pos, BlockState state,
-                                   EtherealLinkBlockEntity be) {
+                                   PhantomLinkBlockEntity be) {
         be.credits = Math.min(be.credits + CREDITS_PER_TICK, MAX_CREDITS);
 
         if (be.searchCooldown > 0) be.searchCooldown--;

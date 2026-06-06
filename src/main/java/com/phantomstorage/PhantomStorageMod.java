@@ -25,7 +25,7 @@ public class PhantomStorageMod {
     private static void onRegisterCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.ETHEREAL_LINK.get(),
+                ModBlockEntities.PHANTOM_LINK.get(),
                 (be, side) -> be.getItemHandler());
     }
 }

@@ -22,12 +22,12 @@ import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 
-public class EtherealLinkBlock extends BaseEntityBlock {
+public class PhantomLinkBlock extends BaseEntityBlock {
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
-    public static final MapCodec<EtherealLinkBlock> CODEC = simpleCodec(EtherealLinkBlock::new);
+    public static final MapCodec<PhantomLinkBlock> CODEC = simpleCodec(PhantomLinkBlock::new);
 
-    public EtherealLinkBlock(BlockBehaviour.Properties props) {
+    public PhantomLinkBlock(BlockBehaviour.Properties props) {
         super(props);
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
@@ -53,7 +53,7 @@ public class EtherealLinkBlock extends BaseEntityBlock {
                             @Nullable LivingEntity placer, ItemStack stack) {
         if (!level.isClientSide && placer instanceof net.minecraft.world.entity.player.Player player) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof EtherealLinkBlockEntity link) {
+            if (be instanceof PhantomLinkBlockEntity link) {
                 link.setOwnerUUID(player.getUUID());
             }
         }
@@ -62,7 +62,7 @@ public class EtherealLinkBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new EtherealLinkBlockEntity(pos, state);
+        return new PhantomLinkBlockEntity(pos, state);
     }
 
     @Nullable
@@ -70,8 +70,8 @@ public class EtherealLinkBlock extends BaseEntityBlock {
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                    BlockEntityType<T> type) {
         if (level.isClientSide) return null;
-        return createTickerHelper(type, ModBlockEntities.ETHEREAL_LINK.get(),
-                EtherealLinkBlockEntity::serverTick);
+        return createTickerHelper(type, ModBlockEntities.PHANTOM_LINK.get(),
+                PhantomLinkBlockEntity::serverTick);
     }
 
     @Override
@@ -84,7 +84,7 @@ public class EtherealLinkBlock extends BaseEntityBlock {
                          BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof EtherealLinkBlockEntity link) {
+            if (be instanceof PhantomLinkBlockEntity link) {
                 link.onRemoved();
             }
         }

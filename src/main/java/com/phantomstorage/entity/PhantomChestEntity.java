@@ -70,7 +70,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
 
-    // Flow state set by EtherealLinkBlockEntity; read by PhantomChestMenu.broadcastChanges()
+    // Flow state set by PhantomLinkBlockEntity; read by PhantomChestMenu.broadcastChanges()
     // 0 = idle, 1 = items flowing in, 2 = items flowing out
     private int flowState = 0;
 

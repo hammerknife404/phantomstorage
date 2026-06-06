@@ -6,7 +6,7 @@
             "entries": [
                 {
                     "type": "minecraft:item",
-                    "name": "phantomstorage:ethereal_link"
+                    "name": "phantomstorage:phantom_link"
                 }
             ],
             "conditions": [

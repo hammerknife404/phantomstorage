@@ -16,6 +16,6 @@
     "container.phantomstorage.tab.crafting": "Craft",
     "container.phantomstorage.tab.filter": "Void Filter",
 
-    "block.phantomstorage.ethereal_link": "Ethereal Link",
-    "tooltip.phantomstorage.ethereal_link": "Place to link with your Phantom Chest. Automatically bound to the placer. Supports hoppers and item pipes."
+    "block.phantomstorage.phantom_link": "Phantom Link",
+    "tooltip.phantomstorage.phantom_link": "Place to link with your Phantom Chest. Automatically bound to the placer. Supports hoppers and item pipes."
 }
