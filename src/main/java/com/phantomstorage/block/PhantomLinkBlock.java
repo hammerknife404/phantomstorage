@@ -5,9 +5,10 @@ import com.phantomstorage.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -22,7 +23,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.BlockHitResult;
 
 import javax.annotation.Nullable;
@@ -84,25 +84,31 @@ public class PhantomLinkBlock extends BaseEntityBlock {
         return RenderShape.MODEL;
     }
 
-    /** Shift + right-click with a dye sets (or changes) the channel. Owner only. */
+    /** Holding any item still opens the GUI (fall through to useWithoutItem). */
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level,
-                                               BlockPos pos, Player player, net.minecraft.world.InteractionHand hand,
+                                               BlockPos pos, Player player,
+                                               net.minecraft.world.InteractionHand hand,
                                                BlockHitResult hit) {
-        if (player.isShiftKeyDown() && stack.getItem() instanceof DyeItem dye) {
-            if (!level.isClientSide) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof PhantomLinkBlockEntity link) {
-                    if (player.getUUID().equals(link.getOwnerUUID())) {
-                        link.setChannel(dye.getDyeColor());
-                    } else {
-                        player.displayClientMessage(
-                                Component.literal("You don't own this Phantom Link"), true);
-                    }
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    /** Right-click opens the channel picker. Owner only. */
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+                                                Player player, BlockHitResult hit) {
+        if (!level.isClientSide) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof PhantomLinkBlockEntity link) {
+                if (player.getUUID().equals(link.getOwnerUUID())) {
+                    player.openMenu(link);
+                } else {
+                    player.displayClientMessage(
+                            Component.literal("You don't own this Phantom Link"), true);
+                    return InteractionResult.FAIL;
                 }
             }
-            return ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 }
