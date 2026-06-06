@@ -83,6 +83,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
 
     public static final String KEY_FILTER = "PhantomChestFilter";
+    public static final String KEY_LINKS  = "PhantomChestLinkedStorages";
 
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
@@ -212,6 +213,34 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             .map(s -> new LinkedStorageSyncPayload.HighlightEntry(s.pos(), s.mode()))
             .toList();
         PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries));
+    }
+
+    // ── Linked storage player-data persistence ────────────────────────────────
+
+    public static List<LinkedStorage> loadLinksFromPlayer(Player player) {
+        CompoundTag data = player.getPersistentData();
+        if (!data.contains(KEY_LINKS)) return new ArrayList<>();
+        ListTag list = data.getList(KEY_LINKS, Tag.TAG_COMPOUND);
+        List<LinkedStorage> result = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            result.add(LinkedStorage.load(list.getCompound(i)));
+        }
+        return result;
+    }
+
+    public static void saveLinksToPlayer(Player player, List<LinkedStorage> links) {
+        ListTag list = new ListTag();
+        for (LinkedStorage s : links) list.add(s.save());
+        player.getPersistentData().put(KEY_LINKS, list);
+    }
+
+    public void loadLinksFrom(Player player) {
+        linkedStorages.clear();
+        linkedStorages.addAll(loadLinksFromPlayer(player));
+    }
+
+    public void saveLinksTo(Player player) {
+        saveLinksToPlayer(player, linkedStorages);
     }
 
     private static boolean isHoldingWrench(Player player) {
@@ -387,6 +416,8 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         if (stale != null) {
             linkedStorages.removeAll(stale);
+            Player owner = getOwner();
+            if (owner != null) saveLinksTo(owner);
         }
 
         Player owner = getOwner();
