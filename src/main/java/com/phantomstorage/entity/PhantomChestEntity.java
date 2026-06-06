@@ -1,15 +1,20 @@
 package com.phantomstorage.entity;
 
+import com.phantomstorage.DesignationMode;
+import com.phantomstorage.LinkedStorage;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.VoidFilterContainer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
@@ -29,11 +34,16 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,6 +79,8 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
+    private final List<LinkedStorage> linkedStorages = new ArrayList<>();
+    private int transferCooldown = 0;
 
     public PhantomChestEntity(EntityType<? extends PhantomChestEntity> type, Level level) {
         super(type, level);
@@ -168,6 +180,23 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
                 ItemStack.parse(provider, slot).ifPresent(s -> inventory.loadItem(index, s));
             }
         }
+    }
+
+    // ── Linked storages ───────────────────────────────────────────────────────
+
+    public void addLinkedStorage(LinkedStorage storage) {
+        linkedStorages.add(storage);
+    }
+
+    public void removeLinkedStorage(BlockPos pos, ResourceKey<Level> dim) {
+        linkedStorages.removeIf(s -> s.pos().equals(pos) && s.dimension().equals(dim));
+    }
+
+    @Nullable
+    public LinkedStorage getLinkedStorage(BlockPos pos, ResourceKey<Level> dim) {
+        return linkedStorages.stream()
+            .filter(s -> s.pos().equals(pos) && s.dimension().equals(dim))
+            .findFirst().orElse(null);
     }
 
     // ── Filter ────────────────────────────────────────────────────────────────
@@ -289,11 +318,14 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public void tick() {
         super.tick();
         if (!this.level().isClientSide) {
-            // Hard snap to owner when genuinely out of range (tp / login gap).
-            // Normal follow is handled by FollowOwnerGoal via FlyingPathNavigation.
             Player owner = getOwner();
             if (owner != null && this.distanceToSqr(owner) > SNAP_DIST_SQ) {
                 this.teleportTo(owner.getX(), owner.getY() + HOVER_Y_OFFSET, owner.getZ());
+            }
+            transferCooldown++;
+            if (transferCooldown >= 20) {
+                transferCooldown = 0;
+                tickLinkedStorages();
             }
         }
         if (this.level().isClientSide && this.tickCount % 16 == 0) {
@@ -304,6 +336,97 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
                     this.getY() + 0.1 + this.random.nextDouble() * 0.75,
                     this.getZ() + (this.random.nextDouble() - 0.5) * 0.8,
                     0, 0.02, 0);
+        }
+    }
+
+    // ── Linked storage transfer ───────────────────────────────────────────────
+
+    private void tickLinkedStorages() {
+        List<LinkedStorage> stale = null;
+
+        for (LinkedStorage link : linkedStorages) {
+            if (!level().dimension().equals(link.dimension())) continue;
+
+            if (level().isLoaded(link.pos())) {
+                BlockEntity be = level().getBlockEntity(link.pos());
+                if (!(be instanceof Container)) {
+                    if (stale == null) stale = new ArrayList<>();
+                    stale.add(link);
+                    continue;
+                }
+            }
+
+            double distSq = Vec3.atCenterOf(link.pos()).distanceToSqr(position());
+            if (distSq > 16.0) continue;
+
+            BlockEntity be = level().getBlockEntity(link.pos());
+            if (!(be instanceof Container target)) continue;
+
+            if (link.mode() == DesignationMode.OUTPUT) {
+                pushItemsTo(target);
+            } else {
+                pullItemsFrom(target);
+            }
+        }
+
+        if (stale != null) {
+            linkedStorages.removeAll(stale);
+        }
+    }
+
+    private void pushItemsTo(Container target) {
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty()) continue;
+
+            for (int j = 0; j < target.getContainerSize(); j++) {
+                if (!target.canPlaceItem(j, stack)) continue;
+
+                ItemStack targetStack = target.getItem(j);
+                if (targetStack.isEmpty()) {
+                    target.setItem(j, stack.copy());
+                    inventory.setItem(i, ItemStack.EMPTY);
+                    inventory.setChanged();
+                    target.setChanged();
+                    break;
+                } else if (ItemStack.isSameItemSameComponents(stack, targetStack)
+                           && targetStack.getCount() < targetStack.getMaxStackSize()) {
+                    int space = targetStack.getMaxStackSize() - targetStack.getCount();
+                    int transfer = Math.min(space, stack.getCount());
+                    targetStack.grow(transfer);
+                    stack.shrink(transfer);
+                    inventory.setChanged();
+                    target.setChanged();
+                    if (stack.isEmpty()) break;
+                }
+            }
+        }
+    }
+
+    private void pullItemsFrom(Container source) {
+        for (int i = 0; i < source.getContainerSize(); i++) {
+            ItemStack stack = source.getItem(i);
+            if (stack.isEmpty()) continue;
+
+            for (int j = 0; j < inventory.getContainerSize(); j++) {
+                ItemStack chestStack = inventory.getItem(j);
+                if (chestStack.isEmpty()) {
+                    inventory.setItem(j, stack.copy());
+                    source.setItem(i, ItemStack.EMPTY);
+                    inventory.setChanged();
+                    source.setChanged();
+                    break;
+                } else if (ItemStack.isSameItemSameComponents(stack, chestStack)
+                           && chestStack.getCount() < chestStack.getMaxStackSize()) {
+                    int space = chestStack.getMaxStackSize() - chestStack.getCount();
+                    int transfer = Math.min(space, stack.getCount());
+                    chestStack.grow(transfer);
+                    stack.shrink(transfer);
+                    inventory.setChanged();
+                    source.setChanged();
+                    if (stack.isEmpty()) break;
+                }
+            }
         }
     }
 
@@ -335,6 +458,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         tag.putInt("Tier", getTier());
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
         tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
+        ListTag storageList = new ListTag();
+        for (LinkedStorage s : linkedStorages) {
+            storageList.add(s.save());
+        }
+        tag.put("LinkedStorages", storageList);
     }
 
     @Override
@@ -351,6 +479,13 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         if (tag.contains("VoidFilter")) {
             loadFilter(tag.getList("VoidFilter", 10), this.level().registryAccess());
+        }
+        linkedStorages.clear();
+        if (tag.contains("LinkedStorages")) {
+            ListTag list = tag.getList("LinkedStorages", Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                linkedStorages.add(LinkedStorage.load(list.getCompound(i)));
+            }
         }
     }
 

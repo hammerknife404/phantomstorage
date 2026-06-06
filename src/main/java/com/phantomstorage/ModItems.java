@@ -1,6 +1,7 @@
 package com.phantomstorage;
 
 import com.phantomstorage.item.PhantomChestSummonerItem;
+import com.phantomstorage.item.PhantomWrenchItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -25,6 +26,11 @@ public class ModItems {
             ITEMS.register("phantom_chest_summoner_supreme",
                     () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 2));
 
+    public static final DeferredHolder<Item, PhantomWrenchItem> PHANTOM_WRENCH =
+            ITEMS.register("phantom_wrench",
+                    () -> new PhantomWrenchItem(new Item.Properties().stacksTo(1)));
+
+    // Phantom Link is disabled — kept for block entity registry compat only
     public static final DeferredHolder<Item, BlockItem> PHANTOM_LINK =
             ITEMS.register("phantom_link",
                     () -> new BlockItem(ModBlocks.PHANTOM_LINK.get(), new Item.Properties()));

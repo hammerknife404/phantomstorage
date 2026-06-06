@@ -16,6 +16,15 @@
     "container.phantomstorage.tab.crafting": "Craft",
     "container.phantomstorage.tab.filter": "Void Filter",
 
+    "item.phantomstorage.phantom_wrench": "Phantom Wrench",
+    "tooltip.phantomstorage.wrench": "Designates storage blocks for your Phantom Chest.\nRight-click to link. Sneak+right-click to cycle or unlink.",
+
+    "message.phantomstorage.wrench.no_chest": "No active Phantom Chest found.",
+    "message.phantomstorage.wrench.linked_output": "Storage linked as OUTPUT. Chest will push items here.",
+    "message.phantomstorage.wrench.linked_input": "Storage linked as INPUT. Chest will pull items from here.",
+    "message.phantomstorage.wrench.unlinked": "Storage unlinked.",
+    "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle.",
+
     "block.phantomstorage.phantom_link": "Phantom Link",
     "tooltip.phantomstorage.phantom_link": "Place to link with your Phantom Chest. Automatically bound to the placer. Supports hoppers and item pipes."
 }

@@ -1,0 +1,17 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "  P",
+        " IG",
+        "I  "
+    ],
+    "key": {
+        "P": { "item": "minecraft:phantom_membrane" },
+        "I": { "item": "minecraft:iron_ingot" },
+        "G": { "item": "minecraft:gold_ingot" }
+    },
+    "result": {
+        "id": "phantomstorage:phantom_wrench",
+        "count": 1
+    }
+}

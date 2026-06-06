@@ -120,7 +120,7 @@ public class PhantomChestSummonerItem extends Item {
      * level. Replaces the old world-scale AABB scan that iterated every loaded entity.
      */
     @Nullable
-    private static PhantomChestEntity findPlayerChest(MinecraftServer server, Player player) {
+    public static PhantomChestEntity findPlayerChest(MinecraftServer server, Player player) {
         CompoundTag data = player.getPersistentData();
         if (!data.hasUUID(PhantomChestEntity.KEY_ENTITY_ID)) return null;
         UUID entityId = data.getUUID(PhantomChestEntity.KEY_ENTITY_ID);

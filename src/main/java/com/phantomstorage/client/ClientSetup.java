@@ -6,7 +6,6 @@ import com.phantomstorage.PhantomStorageMod;
 import com.phantomstorage.client.model.PhantomChestModel;
 import com.phantomstorage.client.renderer.PhantomChestRenderer;
 import com.phantomstorage.client.screen.PhantomChestScreen;
-import com.phantomstorage.client.screen.PhantomLinkScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -29,6 +28,5 @@ public class ClientSetup {
     @SubscribeEvent
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenuTypes.PHANTOM_CHEST_MENU.get(), PhantomChestScreen::new);
-        event.register(ModMenuTypes.PHANTOM_LINK_MENU.get(), PhantomLinkScreen::new);
     }
 }
