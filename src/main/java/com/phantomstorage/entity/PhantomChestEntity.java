@@ -70,10 +70,6 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
 
-    // Flow state set by PhantomLinkBlockEntity; read by PhantomChestMenu.broadcastChanges()
-    // 0 = idle, 1 = items flowing in, 2 = items flowing out
-    private int flowState = 0;
-
     public PhantomChestEntity(EntityType<? extends PhantomChestEntity> type, Level level) {
         super(type, level);
         this.setNoGravity(true);
@@ -141,12 +137,6 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public void setTier(int tier) {
         this.entityData.set(TIER, tier);
     }
-
-    // ── Flow state ────────────────────────────────────────────────────────────
-
-    public int getFlowState() { return flowState; }
-
-    public void setFlowState(int state) { this.flowState = state; }
 
     // ── Inventory ─────────────────────────────────────────────────────────────
 

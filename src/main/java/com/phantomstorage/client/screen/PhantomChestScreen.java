@@ -134,17 +134,5 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     @Override
     protected void renderLabels(GuiGraphics gfx, int mouseX, int mouseY) {
         gfx.drawString(font, title, titleLabelX, titleLabelY, 0x404040, false);
-
-        // Flow indicator — only visible on the chest tab
-        if (menu.getActiveTab() == PhantomChestMenu.TAB_CHEST) {
-            int flow = menu.getFlowState();
-            if (flow == 1) {
-                String label = "▼ Items In";
-                gfx.drawString(font, label, imageWidth - font.width(label) - 7, titleLabelY, 0x4080FF, false);
-            } else if (flow == 2) {
-                String label = "▲ Items Out";
-                gfx.drawString(font, label, imageWidth - font.width(label) - 7, titleLabelY, 0xFF8020, false);
-            }
-        }
     }
 }

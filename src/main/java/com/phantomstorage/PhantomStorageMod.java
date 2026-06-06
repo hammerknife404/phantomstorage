@@ -1,10 +1,11 @@
 package com.phantomstorage;
 
 import com.mojang.logging.LogUtils;
+import com.phantomstorage.block.PhantomLinkBlockEntity;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import org.slf4j.Logger;
 
 @Mod(PhantomStorageMod.MODID)
@@ -19,13 +20,8 @@ public class PhantomStorageMod {
         ModBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         ModMenuTypes.MENU_TYPES.register(modEventBus);
         ModCreativeTabs.CREATIVE_TABS.register(modEventBus);
-        modEventBus.addListener(PhantomStorageMod::onRegisterCapabilities);
-    }
 
-    private static void onRegisterCapabilities(RegisterCapabilitiesEvent event) {
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.PHANTOM_LINK.get(),
-                (be, side) -> be.getItemHandler());
+        // Clear the link channel registry when the server (over)world unloads
+        NeoForge.EVENT_BUS.addListener(PhantomLinkBlockEntity::onServerStopping);
     }
 }

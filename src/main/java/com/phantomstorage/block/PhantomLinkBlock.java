@@ -4,7 +4,11 @@ import com.mojang.serialization.MapCodec;
 import com.phantomstorage.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -19,7 +23,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
 
 import javax.annotation.Nullable;
 
@@ -80,15 +84,25 @@ public class PhantomLinkBlock extends BaseEntityBlock {
         return RenderShape.MODEL;
     }
 
+    /** Shift + right-click with a dye sets (or changes) the channel. Owner only. */
     @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos,
-                         BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof PhantomLinkBlockEntity link) {
-                link.onRemoved();
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level,
+                                               BlockPos pos, Player player, net.minecraft.world.InteractionHand hand,
+                                               BlockHitResult hit) {
+        if (player.isShiftKeyDown() && stack.getItem() instanceof DyeItem dye) {
+            if (!level.isClientSide) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof PhantomLinkBlockEntity link) {
+                    if (player.getUUID().equals(link.getOwnerUUID())) {
+                        link.setChannel(dye.getDyeColor());
+                    } else {
+                        player.displayClientMessage(
+                                Component.literal("You don't own this Phantom Link"), true);
+                    }
+                }
             }
+            return ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
-        super.onRemove(state, level, pos, newState, isMoving);
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
 }

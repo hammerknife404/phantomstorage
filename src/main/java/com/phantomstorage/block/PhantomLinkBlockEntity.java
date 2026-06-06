@@ -1,166 +1,218 @@
 package com.phantomstorage.block;
 
 import com.phantomstorage.ModBlockEntities;
-import com.phantomstorage.entity.PhantomChestEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
 
 import javax.annotation.Nullable;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PhantomLinkBlockEntity extends BlockEntity {
 
-    // 80 credits/tick × 20 ticks = 1600; 1600 / 100 per item = 16 items/sec
+    // 80 credits/tick × 20 ticks/sec = 1600 max; 100 per item → 16 items/sec
     private static final int CREDITS_PER_TICK = 80;
     private static final int CREDITS_PER_ITEM = 100;
     private static final int MAX_CREDITS      = 1600;
 
-    // How long (ticks) the flow indicator in the chest GUI stays visible after the last transfer
-    private static final int FLOW_DISPLAY_TICKS = 20;
-
-    // 2048-block radius covers any practical separation between link and roaming chest
-    private static final double SEARCH_RANGE = 2048.0;
+    // ownerUUID → channel → set of GlobalPos for all links in that channel
+    private static final Map<UUID, Map<DyeColor, Set<GlobalPos>>> REGISTRY =
+            new ConcurrentHashMap<>();
 
     @Nullable private UUID ownerUUID;
-    @Nullable private PhantomChestEntity cachedChest;
-
-    private int credits        = 0;
-    private int flowDecayTicks = 0;
-    private int searchCooldown = 0;
-
-    // ── Item handler ──────────────────────────────────────────────────────────
-
-    private final IItemHandler itemHandler = new IItemHandler() {
-
-        @Override
-        public int getSlots() {
-            return 54;
-        }
-
-        @Override
-        public ItemStack getStackInSlot(int slot) {
-            PhantomChestEntity chest = findChest();
-            return chest != null ? chest.getInventory().getItem(slot) : ItemStack.EMPTY;
-        }
-
-        @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (stack.isEmpty()) return ItemStack.EMPTY;
-            PhantomChestEntity chest = findChest();
-            if (chest == null) return stack;
-            // Rate-limit actual transfers; simulations always report true capacity
-            if (!simulate && credits < CREDITS_PER_ITEM) return stack;
-
-            ItemStack remaining = new InvWrapper(chest.getInventory()).insertItem(slot, stack, simulate);
-            if (!simulate && remaining.getCount() < stack.getCount()) {
-                credits -= CREDITS_PER_ITEM;
-                markFlow(1, chest);
-            }
-            return remaining;
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            PhantomChestEntity chest = findChest();
-            if (chest == null) return ItemStack.EMPTY;
-            if (!simulate && credits < CREDITS_PER_ITEM) return ItemStack.EMPTY;
-
-            ItemStack extracted = new InvWrapper(chest.getInventory()).extractItem(slot, amount, simulate);
-            if (!simulate && !extracted.isEmpty()) {
-                credits -= CREDITS_PER_ITEM;
-                markFlow(2, chest);
-            }
-            return extracted;
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return 64;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            return true;
-        }
-    };
-
-    // ─────────────────────────────────────────────────────────────────────────
+    @Nullable private DyeColor channel;
+    private int credits = 0;
 
     public PhantomLinkBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.PHANTOM_LINK.get(), pos, state);
     }
 
-    public IItemHandler getItemHandler() {
-        return itemHandler;
+    // ── Registry ──────────────────────────────────────────────────────────────
+
+    private void registerSelf() {
+        if (ownerUUID == null || channel == null || level == null) return;
+        GlobalPos gpos = GlobalPos.of(level.dimension(), worldPosition);
+        REGISTRY.computeIfAbsent(ownerUUID, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(channel, k -> ConcurrentHashMap.newKeySet())
+                .add(gpos);
     }
 
+    private void deregisterSelf() {
+        if (ownerUUID == null || channel == null || level == null) return;
+        GlobalPos gpos = GlobalPos.of(level.dimension(), worldPosition);
+        Map<DyeColor, Set<GlobalPos>> ownerMap = REGISTRY.get(ownerUUID);
+        if (ownerMap == null) return;
+        Set<GlobalPos> positions = ownerMap.get(channel);
+        if (positions != null) {
+            positions.remove(gpos);
+            if (positions.isEmpty()) ownerMap.remove(channel);
+        }
+        if (ownerMap.isEmpty()) REGISTRY.remove(ownerUUID);
+    }
+
+    /** Called on server stop to clear stale entries between dev-env sessions. */
+    public static void onServerStopping(LevelEvent.Unload event) {
+        // Only clear on server-side unload; client levels share the same event
+        if (!event.getLevel().isClientSide()) REGISTRY.clear();
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level != null && !level.isClientSide()) registerSelf();
+    }
+
+    @Override
+    public void setRemoved() {
+        if (level != null && !level.isClientSide()) deregisterSelf();
+        super.setRemoved();
+    }
+
+    // ── Setters ───────────────────────────────────────────────────────────────
+
     public void setOwnerUUID(@Nullable UUID uuid) {
+        if (level != null && !level.isClientSide()) deregisterSelf();
         this.ownerUUID = uuid;
-        this.cachedChest = null;
-        this.searchCooldown = 0;
+        if (level != null && !level.isClientSide()) registerSelf();
         setChanged();
     }
 
-    // ── Entity lookup ─────────────────────────────────────────────────────────
-
-    @Nullable
-    private PhantomChestEntity findChest() {
-        if (!(level instanceof ServerLevel) || ownerUUID == null) return null;
-
-        if (cachedChest != null && cachedChest.isAlive()
-                && ownerUUID.equals(cachedChest.getOwnerUUID())) {
-            return cachedChest;
-        }
-
-        // Throttle full searches to once every 2 s while chest is absent
-        if (searchCooldown > 0) return null;
-        searchCooldown = 40;
-
-        cachedChest = null;
-        List<PhantomChestEntity> candidates = level.getEntitiesOfClass(
-                PhantomChestEntity.class,
-                new AABB(worldPosition).inflate(SEARCH_RANGE),
-                e -> ownerUUID.equals(e.getOwnerUUID()) && e.isAlive());
-        if (!candidates.isEmpty()) {
-            cachedChest = candidates.get(0);
-        }
-        return cachedChest;
+    public void setChannel(DyeColor color) {
+        if (level != null && !level.isClientSide()) deregisterSelf();
+        this.channel = color;
+        if (level != null && !level.isClientSide()) registerSelf();
+        setChanged();
+        if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
     }
 
-    // ── Flow state ────────────────────────────────────────────────────────────
+    @Nullable public DyeColor getChannel()   { return channel; }
+    @Nullable public UUID    getOwnerUUID()  { return ownerUUID; }
 
-    private void markFlow(int state, PhantomChestEntity chest) {
-        flowDecayTicks = FLOW_DISPLAY_TICKS;
-        chest.setFlowState(state);
-    }
-
-    public void onRemoved() {
-        PhantomChestEntity chest = findChest();
-        if (chest != null) chest.setFlowState(0);
-    }
-
-    // ── Server tick ───────────────────────────────────────────────────────────
+    // ── Transfer ──────────────────────────────────────────────────────────────
 
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                    PhantomLinkBlockEntity be) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
         be.credits = Math.min(be.credits + CREDITS_PER_TICK, MAX_CREDITS);
+        if (be.credits < CREDITS_PER_ITEM) return;
+        if (be.channel == null || be.ownerUUID == null) return;
+        be.doTransfer(serverLevel, state);
+    }
 
-        if (be.searchCooldown > 0) be.searchCooldown--;
+    private void doTransfer(ServerLevel serverLevel, BlockState state) {
+        Direction facing = state.getValue(PhantomLinkBlock.FACING);
 
-        if (be.flowDecayTicks > 0 && --be.flowDecayTicks == 0) {
-            PhantomChestEntity chest = be.findChest();
-            if (chest != null) chest.setFlowState(0);
+        // Pull from the block on the back face
+        BlockPos inputPos = worldPosition.relative(facing.getOpposite());
+        IItemHandler inputHandler = serverLevel.getCapability(
+                Capabilities.ItemHandler.BLOCK, inputPos, facing);
+        if (inputHandler == null) return;
+
+        // Simulate extract to find a transferable item
+        ItemStack toSend = ItemStack.EMPTY;
+        int sourceSlot = -1;
+        for (int slot = 0; slot < inputHandler.getSlots(); slot++) {
+            ItemStack sim = inputHandler.extractItem(slot, 1, true);
+            if (!sim.isEmpty()) {
+                toSend = sim.copy();
+                sourceSlot = slot;
+                break;
+            }
         }
+        if (toSend.isEmpty()) return;
+
+        // Find a paired link (same owner + channel) that can accept it
+        Map<DyeColor, Set<GlobalPos>> ownerMap = REGISTRY.get(ownerUUID);
+        if (ownerMap == null) return;
+        Set<GlobalPos> endpoints = ownerMap.get(channel);
+        if (endpoints == null) return;
+
+        for (GlobalPos endpoint : endpoints) {
+            if (endpoint.pos().equals(worldPosition)
+                    && endpoint.dimension().equals(serverLevel.dimension())) continue;
+
+            ServerLevel remoteLevel = serverLevel.getServer().getLevel(endpoint.dimension());
+            if (remoteLevel == null) continue;
+
+            BlockEntity be = remoteLevel.getBlockEntity(endpoint.pos());
+            if (!(be instanceof PhantomLinkBlockEntity remote)) continue;
+
+            if (remote.canAccept(toSend, remoteLevel)) {
+                ItemStack actual = inputHandler.extractItem(sourceSlot, 1, false);
+                if (!actual.isEmpty()) {
+                    remote.acceptItem(actual, remoteLevel);
+                    credits -= CREDITS_PER_ITEM;
+                }
+                return;
+            }
+        }
+    }
+
+    boolean canAccept(ItemStack stack, ServerLevel level) {
+        Direction facing = getBlockState().getValue(PhantomLinkBlock.FACING);
+        BlockPos outputPos = worldPosition.relative(facing);
+        IItemHandler handler = level.getCapability(
+                Capabilities.ItemHandler.BLOCK, outputPos, facing.getOpposite());
+        if (handler == null) return false;
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            if (handler.insertItem(slot, stack, true).isEmpty()) return true;
+        }
+        return false;
+    }
+
+    void acceptItem(ItemStack stack, ServerLevel level) {
+        Direction facing = getBlockState().getValue(PhantomLinkBlock.FACING);
+        BlockPos outputPos = worldPosition.relative(facing);
+        IItemHandler handler = level.getCapability(
+                Capabilities.ItemHandler.BLOCK, outputPos, facing.getOpposite());
+        if (handler == null) {
+            spawnDrop(stack, level, outputPos);
+            return;
+        }
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            stack = handler.insertItem(slot, stack, false);
+            if (stack.isEmpty()) return;
+        }
+        if (!stack.isEmpty()) spawnDrop(stack, level, outputPos);
+    }
+
+    private static void spawnDrop(ItemStack stack, ServerLevel level, BlockPos at) {
+        net.minecraft.world.entity.item.ItemEntity ie =
+                new net.minecraft.world.entity.item.ItemEntity(
+                        level, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, stack);
+        ie.setDefaultPickUpDelay();
+        level.addFreshEntity(ie);
+    }
+
+    // ── Sync (channel tint needs to reach the client) ─────────────────────────
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider provider) {
+        CompoundTag tag = super.getUpdateTag(provider);
+        if (channel != null) tag.putString("Channel", channel.getSerializedName());
+        return tag;
+    }
+
+    @Nullable
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     // ── NBT ───────────────────────────────────────────────────────────────────
@@ -169,11 +221,17 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.saveAdditional(tag, provider);
         if (ownerUUID != null) tag.putUUID("Owner", ownerUUID);
+        if (channel != null) tag.putString("Channel", channel.getSerializedName());
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.loadAdditional(tag, provider);
         ownerUUID = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
+        String name = tag.getString("Channel");
+        channel = name.isEmpty() ? null
+                : Arrays.stream(DyeColor.values())
+                        .filter(c -> c.getSerializedName().equals(name))
+                        .findFirst().orElse(null);
     }
 }
