@@ -5,9 +5,13 @@ import com.phantomstorage.entity.PhantomChestEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -37,6 +41,9 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     private int credits        = 0;
     private int flowDecayTicks = 0;
     private int searchCooldown = 0;
+
+    // Client-side mirror of (flowDecayTicks > 0), set via block entity sync packet
+    public boolean isFlowingClient = false;
 
     // ── Item handler ──────────────────────────────────────────────────────────
 
@@ -141,8 +148,34 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     // ── Flow state ────────────────────────────────────────────────────────────
 
     private void markFlow(int state, PhantomChestEntity chest) {
+        boolean wasFlowing = flowDecayTicks > 0;
         flowDecayTicks = FLOW_DISPLAY_TICKS;
         chest.setFlowState(state);
+        if (!wasFlowing) syncToClient();
+    }
+
+    private void syncToClient() {
+        if (level != null && !level.isClientSide) {
+            setChanged();
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider provider) {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("Flowing", flowDecayTicks > 0);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
+        isFlowingClient = tag.getBoolean("Flowing");
     }
 
     public void onRemoved() {
@@ -161,6 +194,7 @@ public class PhantomLinkBlockEntity extends BlockEntity {
         if (be.flowDecayTicks > 0 && --be.flowDecayTicks == 0) {
             PhantomChestEntity chest = be.findChest();
             if (chest != null) chest.setFlowState(0);
+            be.syncToClient();
         }
     }
 
