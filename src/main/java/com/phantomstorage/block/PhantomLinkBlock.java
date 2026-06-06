@@ -2,10 +2,9 @@ package com.phantomstorage.block;
 
 import com.mojang.serialization.MapCodec;
 import com.phantomstorage.ModBlockEntities;
-import com.phantomstorage.ModParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -53,7 +52,7 @@ public class PhantomLinkBlock extends BaseEntityBlock {
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state,
                             @Nullable LivingEntity placer, ItemStack stack) {
-        if (!level.isClientSide && placer instanceof net.minecraft.world.entity.player.Player player) {
+        if (!level.isClientSide && placer instanceof Player player) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof PhantomLinkBlockEntity link) {
                 link.setOwnerUUID(player.getUUID());
@@ -79,22 +78,6 @@ public class PhantomLinkBlock extends BaseEntityBlock {
     @Override
     protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
-    }
-
-    @Override
-    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof PhantomLinkBlockEntity link) || !link.isFlowingClient) return;
-
-        // 1 particle per animateTick call — conservative but always visible
-        double px = pos.getX() + 0.2 + random.nextDouble() * 0.6;
-        double py = pos.getY() + 0.2 + random.nextDouble() * 0.6;
-        double pz = pos.getZ() + 0.2 + random.nextDouble() * 0.6;
-        double vx = (random.nextDouble() - 0.5) * 0.015;
-        double vy = (random.nextDouble() - 0.5) * 0.015;
-        double vz = (random.nextDouble() - 0.5) * 0.015;
-        // addAlwaysVisibleParticle bypasses the particle setting — visible at Minimal/Decreased/All
-        level.addAlwaysVisibleParticle(ModParticles.PHANTOM_LINK_FLOW.get(), px, py, pz, vx, vy, vz);
     }
 
     @Override

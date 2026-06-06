@@ -5,13 +5,9 @@ import com.phantomstorage.entity.PhantomChestEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -29,10 +25,10 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     private static final int CREDITS_PER_ITEM = 100;
     private static final int MAX_CREDITS      = 1600;
 
-    // How long (ticks) the flow indicator remains visible after the last transfer
+    // How long (ticks) the flow indicator in the chest GUI stays visible after the last transfer
     private static final int FLOW_DISPLAY_TICKS = 20;
 
-    // Search range in blocks — covers any practical base-to-base distance
+    // 2048-block radius covers any practical separation between link and roaming chest
     private static final double SEARCH_RANGE = 2048.0;
 
     @Nullable private UUID ownerUUID;
@@ -41,9 +37,6 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     private int credits        = 0;
     private int flowDecayTicks = 0;
     private int searchCooldown = 0;
-
-    // Client-side mirror of (flowDecayTicks > 0), set via block entity sync packet
-    public boolean isFlowingClient = false;
 
     // ── Item handler ──────────────────────────────────────────────────────────
 
@@ -71,7 +64,7 @@ public class PhantomLinkBlockEntity extends BlockEntity {
             ItemStack remaining = new InvWrapper(chest.getInventory()).insertItem(slot, stack, simulate);
             if (!simulate && remaining.getCount() < stack.getCount()) {
                 credits -= CREDITS_PER_ITEM;
-                markFlow(1, chest); // items flowing IN to phantom chest
+                markFlow(1, chest);
             }
             return remaining;
         }
@@ -85,7 +78,7 @@ public class PhantomLinkBlockEntity extends BlockEntity {
             ItemStack extracted = new InvWrapper(chest.getInventory()).extractItem(slot, amount, simulate);
             if (!simulate && !extracted.isEmpty()) {
                 credits -= CREDITS_PER_ITEM;
-                markFlow(2, chest); // items flowing OUT of phantom chest
+                markFlow(2, chest);
             }
             return extracted;
         }
@@ -124,13 +117,12 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     private PhantomChestEntity findChest() {
         if (!(level instanceof ServerLevel) || ownerUUID == null) return null;
 
-        // Cache hit
         if (cachedChest != null && cachedChest.isAlive()
                 && ownerUUID.equals(cachedChest.getOwnerUUID())) {
             return cachedChest;
         }
 
-        // Don't hammer entity search every tick while the chest is absent
+        // Throttle full searches to once every 2 s while chest is absent
         if (searchCooldown > 0) return null;
         searchCooldown = 40;
 
@@ -148,34 +140,8 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     // ── Flow state ────────────────────────────────────────────────────────────
 
     private void markFlow(int state, PhantomChestEntity chest) {
-        boolean wasFlowing = flowDecayTicks > 0;
         flowDecayTicks = FLOW_DISPLAY_TICKS;
         chest.setFlowState(state);
-        if (!wasFlowing) syncToClient();
-    }
-
-    private void syncToClient() {
-        if (level != null && !level.isClientSide) {
-            setChanged();
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
-        }
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider provider) {
-        CompoundTag tag = new CompoundTag();
-        tag.putBoolean("Flowing", flowDecayTicks > 0);
-        return tag;
-    }
-
-    @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
-        isFlowingClient = tag.getBoolean("Flowing");
     }
 
     public void onRemoved() {
@@ -194,7 +160,6 @@ public class PhantomLinkBlockEntity extends BlockEntity {
         if (be.flowDecayTicks > 0 && --be.flowDecayTicks == 0) {
             PhantomChestEntity chest = be.findChest();
             if (chest != null) chest.setFlowState(0);
-            be.syncToClient();
         }
     }
 
@@ -204,13 +169,11 @@ public class PhantomLinkBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.saveAdditional(tag, provider);
         if (ownerUUID != null) tag.putUUID("Owner", ownerUUID);
-        tag.putInt("Credits", credits);
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.loadAdditional(tag, provider);
         ownerUUID = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
-        credits   = tag.getInt("Credits");
     }
 }

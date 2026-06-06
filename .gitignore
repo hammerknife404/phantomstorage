@@ -25,3 +25,10 @@ jei-*.jar
 # OS
 .DS_Store
 Thumbs.db
+
+# Asset source folders and loose files (stay local, not part of mod source)
+knockknock.txt
+phantomstorage_shortterm_breakdown.md
+phantom_pearl_buffer_assets/
+phantom_pearl_buffer_assets_v3/
+*.zip

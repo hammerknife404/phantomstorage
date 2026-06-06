@@ -198,7 +198,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (slotId >= FILTER_START && slotId < FILTER_START + 9) {
+        if (slotId >= FILTER_START && slotId < PLAYER_INV_START) {
             Slot slot = slots.get(slotId);
             ItemStack cursor = getCarried();
             slot.set(cursor.isEmpty() ? ItemStack.EMPTY : cursor.copyWithCount(1));
@@ -211,7 +211,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        if (index >= FILTER_START && index < FILTER_START + 9) {
+        if (index >= FILTER_START && index < PLAYER_INV_START) {
             slots.get(index).set(ItemStack.EMPTY);
             return ItemStack.EMPTY;
         }
