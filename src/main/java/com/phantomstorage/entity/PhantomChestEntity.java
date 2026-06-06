@@ -9,6 +9,7 @@ import com.phantomstorage.network.LinkedStorageSyncPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -18,7 +19,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
@@ -38,8 +38,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.wrapper.InvWrapper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -363,26 +366,22 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         for (LinkedStorage link : linkedStorages) {
             if (!level().dimension().equals(link.dimension())) continue;
+            if (!level().isLoaded(link.pos())) continue;
 
-            if (level().isLoaded(link.pos())) {
-                BlockEntity be = level().getBlockEntity(link.pos());
-                if (!(be instanceof Container)) {
-                    if (stale == null) stale = new ArrayList<>();
-                    stale.add(link);
-                    continue;
-                }
+            IItemHandler handler = getItemHandler(level(), link.pos());
+            if (handler == null) {
+                if (stale == null) stale = new ArrayList<>();
+                stale.add(link);
+                continue;
             }
 
             double distSq = Vec3.atCenterOf(link.pos()).distanceToSqr(position());
             if (distSq > 16.0) continue;
 
-            BlockEntity be = level().getBlockEntity(link.pos());
-            if (!(be instanceof Container target)) continue;
-
             if (link.mode() == DesignationMode.OUTPUT) {
-                pushItemsTo(target);
+                pushItemsTo(handler);
             } else {
-                pullItemsFrom(target);
+                pullItemsFrom(handler);
             }
         }
 
@@ -390,67 +389,47 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             linkedStorages.removeAll(stale);
         }
 
-        // Sync highlights to owner if they're holding the wrench
         Player owner = getOwner();
         if (owner instanceof ServerPlayer sp && isHoldingWrench(owner)) {
             syncHighlightsTo(sp);
         }
     }
 
-    private void pushItemsTo(Container target) {
+    private void pushItemsTo(IItemHandler target) {
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) continue;
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(target, stack.copy(), false);
+            inventory.setItem(i, remainder);
+            if (remainder.getCount() != stack.getCount()) inventory.setChanged();
+        }
+    }
 
-            for (int j = 0; j < target.getContainerSize(); j++) {
-                if (!target.canPlaceItem(j, stack)) continue;
-
-                ItemStack targetStack = target.getItem(j);
-                if (targetStack.isEmpty()) {
-                    target.setItem(j, stack.copy());
-                    inventory.setItem(i, ItemStack.EMPTY);
-                    inventory.setChanged();
-                    target.setChanged();
-                    break;
-                } else if (ItemStack.isSameItemSameComponents(stack, targetStack)
-                           && targetStack.getCount() < targetStack.getMaxStackSize()) {
-                    int space = targetStack.getMaxStackSize() - targetStack.getCount();
-                    int transfer = Math.min(space, stack.getCount());
-                    targetStack.grow(transfer);
-                    stack.shrink(transfer);
-                    inventory.setChanged();
-                    target.setChanged();
-                    if (stack.isEmpty()) break;
-                }
+    private void pullItemsFrom(IItemHandler source) {
+        IItemHandler inv = new InvWrapper(inventory);
+        for (int i = 0; i < source.getSlots(); i++) {
+            ItemStack available = source.getStackInSlot(i);
+            if (available.isEmpty()) continue;
+            ItemStack toInsert = source.extractItem(i, available.getCount(), true);
+            if (toInsert.isEmpty()) continue;
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(inv, toInsert.copy(), false);
+            int transferred = toInsert.getCount() - remainder.getCount();
+            if (transferred > 0) {
+                source.extractItem(i, transferred, false);
+                inventory.setChanged();
             }
         }
     }
 
-    private void pullItemsFrom(Container source) {
-        for (int i = 0; i < source.getContainerSize(); i++) {
-            ItemStack stack = source.getItem(i);
-            if (stack.isEmpty()) continue;
-
-            for (int j = 0; j < inventory.getContainerSize(); j++) {
-                ItemStack chestStack = inventory.getItem(j);
-                if (chestStack.isEmpty()) {
-                    inventory.setItem(j, stack.copy());
-                    source.setItem(i, ItemStack.EMPTY);
-                    inventory.setChanged();
-                    source.setChanged();
-                    break;
-                } else if (ItemStack.isSameItemSameComponents(stack, chestStack)
-                           && chestStack.getCount() < chestStack.getMaxStackSize()) {
-                    int space = chestStack.getMaxStackSize() - chestStack.getCount();
-                    int transfer = Math.min(space, stack.getCount());
-                    chestStack.grow(transfer);
-                    stack.shrink(transfer);
-                    inventory.setChanged();
-                    source.setChanged();
-                    if (stack.isEmpty()) break;
-                }
-            }
+    @Nullable
+    private static IItemHandler getItemHandler(Level level, BlockPos pos) {
+        IItemHandler h = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
+        if (h != null) return h;
+        for (Direction dir : Direction.values()) {
+            h = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, dir);
+            if (h != null) return h;
         }
+        return null;
     }
 
     // ── Combat / physics ──────────────────────────────────────────────────────

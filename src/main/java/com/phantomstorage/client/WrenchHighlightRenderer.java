@@ -45,7 +45,9 @@ public class WrenchHighlightRenderer {
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
 
+        Vec3 playerPos = player.position();
         for (LinkedStorageSyncPayload.HighlightEntry entry : entries) {
+            if (Vec3.atCenterOf(entry.pos()).distanceToSqr(playerPos) > 32.0 * 32.0) continue;
             AABB box = new AABB(entry.pos()).inflate(0.003);
             if (entry.mode() == DesignationMode.INPUT) {
                 // Blue

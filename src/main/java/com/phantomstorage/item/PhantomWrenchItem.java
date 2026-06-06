@@ -4,12 +4,14 @@ import com.phantomstorage.DesignationMode;
 import com.phantomstorage.LinkedStorage;
 import com.phantomstorage.entity.PhantomChestEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
 import net.minecraft.world.InteractionResult;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -33,9 +35,14 @@ public class PhantomWrenchItem extends Item {
         Player player = ctx.getPlayer();
         BlockPos pos = ctx.getClickedPos();
 
-        if (!(level.getBlockEntity(pos) instanceof Container)) {
-            return InteractionResult.PASS;
+        IItemHandler storage = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
+        if (storage == null) {
+            for (Direction dir : Direction.values()) {
+                storage = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, dir);
+                if (storage != null) break;
+            }
         }
+        if (storage == null) return InteractionResult.PASS;
 
         PhantomChestEntity chest = PhantomChestSummonerItem.findPlayerChest(
             ((ServerLevel) level).getServer(), player
