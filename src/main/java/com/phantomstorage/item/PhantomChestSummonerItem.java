@@ -78,6 +78,7 @@ public class PhantomChestSummonerItem extends Item {
             // Chest is here — dismiss it
             existing.saveInventoryTo(player);
             existing.saveFilterTo(player);
+            existing.saveRefillTo(player);
             existing.saveLinksTo(player);
             existing.discard();
             player.getPersistentData().remove(PhantomChestEntity.KEY_ENTITY_ID);
@@ -89,6 +90,7 @@ public class PhantomChestSummonerItem extends Item {
             if (existing != null) {
                 existing.saveInventoryTo(player);
                 existing.saveFilterTo(player);
+                existing.saveRefillTo(player);
                 existing.saveLinksTo(player);
                 existing.discard();
             }
@@ -107,6 +109,7 @@ public class PhantomChestSummonerItem extends Item {
                     0f, 0f);
             chest.loadInventoryFrom(player);
             chest.loadFilterFrom(player);
+            chest.loadRefillFrom(player);
             chest.loadLinksFrom(player);
             serverLevel.addFreshEntity(chest);
             player.getPersistentData().putUUID(PhantomChestEntity.KEY_ENTITY_ID, chest.getUUID());

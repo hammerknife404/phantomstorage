@@ -23,6 +23,8 @@
     "container.phantomstorage.anchor.not_docked": "Not docked",
     "container.phantomstorage.anchor.radius": "Radius: %s",
     "container.phantomstorage.anchor.eject": "Eject",
+    "container.phantomstorage.anchor.input_mode": "Redstone: %s",
+    "container.phantomstorage.anchor.comparator_mode": "Comparator: %s",
 
     "container.phantomstorage.tab.chest": "Chest",
     "container.phantomstorage.tab.crafting": "Craft",
@@ -30,6 +32,8 @@
     "container.phantomstorage.tab.logistics": "Links",
     "container.phantomstorage.tab.logistics.header": "Linked storages: %s / %s",
     "container.phantomstorage.tab.logistics.empty": "No linked storages. Use the Phantom Wrench to link one.",
+    "container.phantomstorage.tab.refill": "Refill",
+    "container.phantomstorage.tab.refill.header": "Auto-Refill",
 
     "item.phantomstorage.phantom_wrench": "Phantom Wrench",
     "tooltip.phantomstorage.wrench": "Designates storage blocks for your Phantom Chest.\nRight-click to link. Sneak+right-click to cycle or unlink.",

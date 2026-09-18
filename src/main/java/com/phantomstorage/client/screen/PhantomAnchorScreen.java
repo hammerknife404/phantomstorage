@@ -1,5 +1,7 @@
 package com.phantomstorage.client.screen;
 
+import com.phantomstorage.ComparatorMode;
+import com.phantomstorage.RedstoneInputMode;
 import com.phantomstorage.inventory.PhantomAnchorMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -11,12 +13,14 @@ public class PhantomAnchorScreen extends AbstractContainerScreen<PhantomAnchorMe
 
     private Button radiusDownBtn;
     private Button radiusUpBtn;
+    private Button inputModeBtn;
+    private Button comparatorModeBtn;
     private Button ejectBtn;
 
     public PhantomAnchorScreen(PhantomAnchorMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
         this.imageWidth = 176;
-        this.imageHeight = 96;
+        this.imageHeight = 138;
         this.inventoryLabelY = 10000; // hide vanilla inventory label — this GUI has no slots
     }
 
@@ -24,21 +28,31 @@ public class PhantomAnchorScreen extends AbstractContainerScreen<PhantomAnchorMe
     protected void init() {
         super.init();
 
-        int midY = topPos + 46;
+        int radiusY = topPos + 46;
 
         radiusDownBtn = Button.builder(Component.literal("-"),
                 b -> click(PhantomAnchorMenu.BTN_RADIUS_DOWN))
-                .bounds(leftPos + 40, midY - 10, 20, 20).build();
+                .bounds(leftPos + 40, radiusY - 10, 20, 20).build();
         addRenderableWidget(radiusDownBtn);
 
         radiusUpBtn = Button.builder(Component.literal("+"),
                 b -> click(PhantomAnchorMenu.BTN_RADIUS_UP))
-                .bounds(leftPos + 116, midY - 10, 20, 20).build();
+                .bounds(leftPos + 116, radiusY - 10, 20, 20).build();
         addRenderableWidget(radiusUpBtn);
+
+        inputModeBtn = Button.builder(Component.literal(""),
+                b -> click(PhantomAnchorMenu.BTN_INPUT_MODE))
+                .bounds(leftPos + 28, topPos + 70, 120, 18).build();
+        addRenderableWidget(inputModeBtn);
+
+        comparatorModeBtn = Button.builder(Component.literal(""),
+                b -> click(PhantomAnchorMenu.BTN_COMPARATOR_MODE))
+                .bounds(leftPos + 28, topPos + 92, 120, 18).build();
+        addRenderableWidget(comparatorModeBtn);
 
         ejectBtn = Button.builder(Component.translatable("container.phantomstorage.anchor.eject"),
                 b -> click(PhantomAnchorMenu.BTN_EJECT))
-                .bounds(leftPos + 48, topPos + 72, 80, 18).build();
+                .bounds(leftPos + 48, topPos + 114, 80, 18).build();
         addRenderableWidget(ejectBtn);
     }
 
@@ -50,10 +64,26 @@ public class PhantomAnchorScreen extends AbstractContainerScreen<PhantomAnchorMe
     public void containerTick() {
         super.containerTick();
         boolean owner = menu.isOwner();
+
         radiusDownBtn.active = owner;
         radiusUpBtn.active = owner;
+        inputModeBtn.active = owner;
+        comparatorModeBtn.active = owner;
         ejectBtn.visible = menu.isDocked();
         ejectBtn.active = owner && menu.isDocked();
+
+        RedstoneInputMode inputMode = RedstoneInputMode.values()[menu.getInputModeOrdinal()];
+        inputModeBtn.setMessage(Component.translatable(
+                "container.phantomstorage.anchor.input_mode", modeLabel(inputMode)));
+
+        ComparatorMode comparatorMode = ComparatorMode.values()[menu.getComparatorModeOrdinal()];
+        comparatorModeBtn.setMessage(Component.translatable(
+                "container.phantomstorage.anchor.comparator_mode", modeLabel(comparatorMode)));
+    }
+
+    private static String modeLabel(Enum<?> mode) {
+        String name = mode.name().toLowerCase().replace('_', ' ');
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
     @Override

@@ -85,6 +85,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
     public static final String KEY_FILTER = "PhantomChestFilter";
     public static final String KEY_LINKS  = "PhantomChestLinkedStorages";
+    public static final String KEY_REFILL = "PhantomChestRefill";
 
     /** Key used to remember the player's most recently summoned tier for out-of-chest lookups (e.g. the wrench). */
     private static final String KEY_TIER = "PhantomChest.Tier";
@@ -119,9 +120,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     }
 
     private final SimpleContainer filterSlots = new SimpleContainer(9);
+    private final SimpleContainer refillSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
     private final List<LinkedStorage> linkedStorages = new ArrayList<>();
     private int transferCooldown = 0;
+    private int refillCooldown = 0;
     private boolean anchored = false;
     @Nullable private Vec3 anchorPos;
     @Nullable private BlockPos dockedBlockPos;
@@ -328,6 +331,116 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
     }
 
+    // ── Refill ────────────────────────────────────────────────────────────────
+
+    public SimpleContainer getRefillSlots() {
+        return refillSlots;
+    }
+
+    public ListTag saveRefill(HolderLookup.Provider provider) {
+        ListTag list = new ListTag();
+        for (int i = 0; i < refillSlots.getContainerSize(); i++) {
+            ItemStack stack = refillSlots.getItem(i);
+            if (!stack.isEmpty()) {
+                CompoundTag slot = new CompoundTag();
+                slot.putByte("Slot", (byte) i);
+                list.add(stack.save(provider, slot));
+            }
+        }
+        return list;
+    }
+
+    public void loadRefill(ListTag list, HolderLookup.Provider provider) {
+        refillSlots.clearContent();
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag slot = list.getCompound(i);
+            int index = slot.getByte("Slot") & 0xFF;
+            if (index < refillSlots.getContainerSize()) {
+                ItemStack.parse(provider, slot).ifPresent(s -> refillSlots.setItem(index, s));
+            }
+        }
+    }
+
+    public void saveRefillTo(Player player) {
+        player.getPersistentData().put(KEY_REFILL, saveRefill(this.level().registryAccess()));
+    }
+
+    public void loadRefillFrom(Player player) {
+        CompoundTag data = player.getPersistentData();
+        if (data.contains(KEY_REFILL)) {
+            loadRefill(data.getList(KEY_REFILL, 10), this.level().registryAccess());
+        } else {
+            refillSlots.clearContent();
+        }
+    }
+
+    /**
+     * Tops up the owner's hotbar from the chest's main inventory for every item type defined in
+     * the refill slots — one hotbar-worth (up to a full stack) per defined item, pulled from
+     * wherever the chest inventory currently has it (including items previously pulled in via
+     * wrench INPUT links). Doesn't reach past the chest into linked storages directly; the chest
+     * inventory is already the aggregation point for those.
+     */
+    private void tickRefill() {
+        Player owner = getOwner();
+        if (owner == null) return;
+        for (int i = 0; i < refillSlots.getContainerSize(); i++) {
+            ItemStack template = refillSlots.getItem(i);
+            if (!template.isEmpty()) {
+                refillHotbarFor(owner, template);
+            }
+        }
+    }
+
+    private void refillHotbarFor(Player owner, ItemStack template) {
+        List<ItemStack> hotbar = owner.getInventory().items; // indices 0-8 are the hotbar
+        int have = 0;
+        for (int i = 0; i < 9; i++) {
+            if (ItemStack.isSameItem(hotbar.get(i), template)) have += hotbar.get(i).getCount();
+        }
+        int need = template.getMaxStackSize() - have;
+        if (need <= 0) return;
+
+        boolean changed = false;
+        for (int i = 0; i < inventory.getContainerSize() && need > 0; i++) {
+            ItemStack src = inventory.getItem(i);
+            if (src.isEmpty() || !ItemStack.isSameItem(src, template)) continue;
+
+            ItemStack moving = src.copyWithCount(Math.min(need, src.getCount()));
+            int before = moving.getCount();
+            insertIntoHotbar(hotbar, moving);
+            int moved = before - moving.getCount();
+            if (moved <= 0) continue;
+
+            src.shrink(moved);
+            if (src.isEmpty()) inventory.setItem(i, ItemStack.EMPTY);
+            need -= moved;
+            changed = true;
+        }
+        if (changed) {
+            inventory.setChanged();
+            owner.getInventory().setChanged();
+        }
+    }
+
+    /** Merges into existing matching hotbar stacks first, then empty hotbar slots. Mutates `moving` down to its remainder. */
+    private static void insertIntoHotbar(List<ItemStack> hotbar, ItemStack moving) {
+        for (int i = 0; i < 9 && !moving.isEmpty(); i++) {
+            ItemStack slot = hotbar.get(i);
+            if (!slot.isEmpty() && ItemStack.isSameItem(slot, moving) && slot.getCount() < slot.getMaxStackSize()) {
+                int add = Math.min(slot.getMaxStackSize() - slot.getCount(), moving.getCount());
+                slot.grow(add);
+                moving.shrink(add);
+            }
+        }
+        for (int i = 0; i < 9 && !moving.isEmpty(); i++) {
+            if (hotbar.get(i).isEmpty()) {
+                hotbar.set(i, moving.copy());
+                moving.setCount(0);
+            }
+        }
+    }
+
     /** Loads the 54-slot inventory from the owner player's persistent data. */
     public void loadInventoryFrom(Player player) {
         CompoundTag data = player.getPersistentData();
@@ -378,7 +491,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player) {
         if (!player.getUUID().equals(getOwnerUUID())) return null;
-        return new PhantomChestMenu(id, playerInventory, inventory, filterSlots, this);
+        return new PhantomChestMenu(id, playerInventory, inventory, filterSlots, refillSlots, this);
     }
 
     // ── Interaction ───────────────────────────────────────────────────────────
@@ -472,6 +585,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             if (transferCooldown >= transferIntervalForTier(getTier())) {
                 transferCooldown = 0;
                 tickLinkedStorages();
+            }
+            refillCooldown++;
+            if (refillCooldown >= 20) {
+                refillCooldown = 0;
+                tickRefill();
             }
         }
         if (this.level().isClientSide && this.tickCount % 16 == 0) {
@@ -598,6 +716,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
         tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
+        tag.put("RefillSlots", saveRefill(this.level().registryAccess()));
         ListTag storageList = new ListTag();
         for (LinkedStorage s : linkedStorages) {
             storageList.add(s.save());
@@ -626,6 +745,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         if (tag.contains("VoidFilter")) {
             loadFilter(tag.getList("VoidFilter", 10), this.level().registryAccess());
+        }
+        if (tag.contains("RefillSlots")) {
+            loadRefill(tag.getList("RefillSlots", 10), this.level().registryAccess());
         }
         linkedStorages.clear();
         if (tag.contains("LinkedStorages")) {
