@@ -30,5 +30,6 @@
     "message.phantomstorage.wrench.unlinked": "Storage unlinked.",
     "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle.",
     "message.phantomstorage.wrench.max_links": "Link limit reached (%s/%s).",
+    "message.phantomstorage.wrench.taken": "Another player already has this storage linked.",
     "hud.phantomstorage.wrench_links": "Links: %s / %s"
 }
