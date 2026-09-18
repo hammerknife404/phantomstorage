@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
-public record LinkedStorageSyncPayload(List<HighlightEntry> entries) implements CustomPacketPayload {
+public record LinkedStorageSyncPayload(List<HighlightEntry> entries, int tier) implements CustomPacketPayload {
 
     public record HighlightEntry(BlockPos pos, DesignationMode mode) {}
 
@@ -25,9 +25,13 @@ public record LinkedStorageSyncPayload(List<HighlightEntry> entries) implements 
         HighlightEntry::new
     );
 
-    public static final StreamCodec<ByteBuf, LinkedStorageSyncPayload> CODEC =
-        ENTRY_CODEC.apply(ByteBufCodecs.list())
-                   .map(LinkedStorageSyncPayload::new, LinkedStorageSyncPayload::entries);
+    public static final StreamCodec<ByteBuf, LinkedStorageSyncPayload> CODEC = StreamCodec.composite(
+        ENTRY_CODEC.apply(ByteBufCodecs.list()),
+        LinkedStorageSyncPayload::entries,
+        ByteBufCodecs.VAR_INT,
+        LinkedStorageSyncPayload::tier,
+        LinkedStorageSyncPayload::new
+    );
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

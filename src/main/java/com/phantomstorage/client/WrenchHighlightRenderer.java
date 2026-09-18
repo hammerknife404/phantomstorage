@@ -55,7 +55,8 @@ public class WrenchHighlightRenderer {
             if (Vec3.atCenterOf(entry.pos()).distanceToSqr(playerPos) > 32.0 * 32.0) continue;
 
             AABB tight = new AABB(entry.pos()).inflate(0.003);
-            AABB range = new AABB(entry.pos()).inflate(PhantomChestEntity.TRANSFER_RANGE);
+            AABB range = new AABB(entry.pos())
+                    .inflate(PhantomChestEntity.transferRangeForTier(WrenchHighlightData.getTier()));
 
             if (entry.mode() == DesignationMode.INPUT) {
                 LevelRenderer.renderLineBox(poseStack, lines, tight, 0.2f, 0.5f, 1.0f, 0.5f);
@@ -80,7 +81,8 @@ public class WrenchHighlightRenderer {
                 && !player.getOffhandItem().is(ModItems.PHANTOM_WRENCH.get())) return;
 
         int count = WrenchHighlightData.get().size();
-        Component text = Component.translatable("hud.phantomstorage.wrench_links", count);
+        int cap = PhantomChestEntity.linkCapForTier(WrenchHighlightData.getTier());
+        Component text = Component.translatable("hud.phantomstorage.wrench_links", count, cap);
 
         GuiGraphics gui = event.getGuiGraphics();
         int w = mc.getWindow().getGuiScaledWidth();

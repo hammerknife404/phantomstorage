@@ -16,7 +16,7 @@ public class ModNetwork {
         registrar.playToClient(
             LinkedStorageSyncPayload.TYPE,
             LinkedStorageSyncPayload.CODEC,
-            (payload, ctx) -> ctx.enqueueWork(() -> WrenchHighlightData.update(payload.entries()))
+            (payload, ctx) -> ctx.enqueueWork(() -> WrenchHighlightData.update(payload.entries(), payload.tier()))
         );
     }
 }

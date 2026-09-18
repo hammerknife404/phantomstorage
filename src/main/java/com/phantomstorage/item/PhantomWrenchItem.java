@@ -55,10 +55,14 @@ public class PhantomWrenchItem extends Item {
             .filter(s -> s.pos().equals(pos) && s.dimension().equals(dim))
             .findFirst().orElse(null);
 
+        int tier = PhantomChestEntity.getSavedTier(player);
+        int linkCap = PhantomChestEntity.linkCapForTier(tier);
+
         if (existing == null) {
-            if (links.size() >= 16) {
+            if (links.size() >= linkCap) {
                 player.displayClientMessage(
-                    Component.translatable("message.phantomstorage.wrench.max_links"), true);
+                    Component.translatable("message.phantomstorage.wrench.max_links",
+                        links.size(), linkCap), true);
                 return InteractionResult.FAIL;
             }
             links.add(new LinkedStorage(pos, dim, DesignationMode.OUTPUT));
@@ -93,7 +97,7 @@ public class PhantomWrenchItem extends Item {
                 .filter(s -> s.dimension().equals(dim))
                 .map(s -> new LinkedStorageSyncPayload.HighlightEntry(s.pos(), s.mode()))
                 .toList();
-            PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries));
+            PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries, tier));
         }
 
         return InteractionResult.sidedSuccess(false);
