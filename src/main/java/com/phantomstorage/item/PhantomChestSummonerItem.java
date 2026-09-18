@@ -92,6 +92,7 @@ public class PhantomChestSummonerItem extends Item {
 
             chest.setOwnerUUID(player.getUUID());
             chest.setTier(this.tier);
+            PhantomChestEntity.saveTierTo(player, this.tier);
             // Spawn at a random direction from the player so there's no look-direction bias.
             double spawnAngle = serverLevel.random.nextDouble() * Math.PI * 2;
             chest.moveTo(

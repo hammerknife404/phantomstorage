@@ -84,7 +84,38 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
     public static final String KEY_FILTER = "PhantomChestFilter";
     public static final String KEY_LINKS  = "PhantomChestLinkedStorages";
-    public static final double TRANSFER_RANGE = 4.0;
+
+    /** Key used to remember the player's most recently summoned tier for out-of-chest lookups (e.g. the wrench). */
+    private static final String KEY_TIER = "PhantomChest.Tier";
+
+    // ── Tier-scaled logistics ────────────────────────────────────────────────
+    /** Index by tier (0 = base, 1 = upgraded, 2 = supreme). */
+    private static final int[]    LINK_CAP_BY_TIER      = {4, 8, 16};
+    private static final double[] TRANSFER_RANGE_BY_TIER = {4.0, 6.0, 8.0};
+    /** Ticks between linked-storage scans — lower is faster. */
+    private static final int[]    TRANSFER_INTERVAL_BY_TIER = {40, 20, 10};
+
+    public static int linkCapForTier(int tier) {
+        return LINK_CAP_BY_TIER[Math.max(0, Math.min(tier, LINK_CAP_BY_TIER.length - 1))];
+    }
+
+    public static double transferRangeForTier(int tier) {
+        return TRANSFER_RANGE_BY_TIER[Math.max(0, Math.min(tier, TRANSFER_RANGE_BY_TIER.length - 1))];
+    }
+
+    private static int transferIntervalForTier(int tier) {
+        return TRANSFER_INTERVAL_BY_TIER[Math.max(0, Math.min(tier, TRANSFER_INTERVAL_BY_TIER.length - 1))];
+    }
+
+    /** Reads the tier of the player's most recently summoned chest (defaults to 0 if none yet). */
+    public static int getSavedTier(Player player) {
+        CompoundTag data = player.getPersistentData();
+        return data.contains(KEY_TIER) ? data.getInt(KEY_TIER) : 0;
+    }
+
+    public static void saveTierTo(Player player, int tier) {
+        player.getPersistentData().putInt(KEY_TIER, tier);
+    }
 
     private final SimpleContainer filterSlots = new SimpleContainer(9);
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
@@ -121,6 +152,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new FollowOwnerGoal(this));
+        this.goalSelector.addGoal(2, new AmbientDriftGoal(this));
         this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 6.0f));
     }
 
@@ -213,7 +245,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             .filter(s -> s.dimension().equals(level().dimension()))
             .map(s -> new LinkedStorageSyncPayload.HighlightEntry(s.pos(), s.mode()))
             .toList();
-        PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries));
+        PacketDistributor.sendToPlayer(sp, new LinkedStorageSyncPayload(entries, getTier()));
     }
 
     // ── Linked storage player-data persistence ────────────────────────────────
@@ -373,7 +405,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
                 this.teleportTo(owner.getX(), owner.getY() + HOVER_Y_OFFSET, owner.getZ());
             }
             transferCooldown++;
-            if (transferCooldown >= 20) {
+            if (transferCooldown >= transferIntervalForTier(getTier())) {
                 transferCooldown = 0;
                 tickLinkedStorages();
             }
@@ -405,8 +437,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
                 continue;
             }
 
+            double range = transferRangeForTier(getTier());
             double distSq = Vec3.atCenterOf(link.pos()).distanceToSqr(position());
-            if (distSq > TRANSFER_RANGE * TRANSFER_RANGE) continue;
+            if (distSq > range * range) continue;
 
             if (link.mode() == DesignationMode.OUTPUT) {
                 pushItemsTo(handler);
@@ -581,6 +614,57 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         private void pathToOwner() {
             chest.getNavigation().moveTo(owner, FOLLOW_SPEED);
+        }
+    }
+
+    // ── Ambient drift goal ────────────────────────────────────────────────────
+
+    /**
+     * Allay-style idle flutter: while hovering near the owner (not actively following),
+     * periodically drifts to a small random nearby point instead of sitting frozen in place.
+     */
+    private static class AmbientDriftGoal extends Goal {
+
+        private static final double DRIFT_RADIUS_H = 1.5;
+        private static final double DRIFT_RADIUS_V = 0.5;
+        private static final double DRIFT_SPEED    = 0.5;
+
+        private final PhantomChestEntity chest;
+        private int idleTimer;
+
+        AmbientDriftGoal(PhantomChestEntity chest) {
+            this.chest = chest;
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (chest.getOwner() == null) return false;
+            if (!chest.getNavigation().isDone()) return false;
+            if (idleTimer > 0) {
+                idleTimer--;
+                return false;
+            }
+            return chest.random.nextInt(40) == 0;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return !chest.getNavigation().isDone();
+        }
+
+        @Override
+        public void start() {
+            double dx = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
+            double dy = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_V;
+            double dz = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
+            chest.getNavigation().moveTo(
+                    chest.getX() + dx, chest.getY() + dy, chest.getZ() + dz, DRIFT_SPEED);
+        }
+
+        @Override
+        public void stop() {
+            idleTimer = 40 + chest.random.nextInt(60);
         }
     }
 }
