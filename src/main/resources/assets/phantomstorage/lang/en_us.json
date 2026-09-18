@@ -5,12 +5,14 @@
     "item.phantomstorage.phantom_chest_summoner_upgraded": "Upgraded Phantom Chest Summoner",
     "item.phantomstorage.phantom_chest_summoner_supreme": "Supreme Phantom Chest Summoner",
 
-    "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.",
+    "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.\n§7Sneak+right-click the chest to anchor it in place.",
     "tooltip.phantomstorage.summoner.inactive": "§7Right-click to summon your Phantom Chest.",
 
     "message.phantomstorage.summoned": "Phantom Chest summoned.",
     "message.phantomstorage.dismissed": "Phantom Chest dismissed.",
     "message.phantomstorage.not_owner": "This chest belongs to someone else.",
+    "message.phantomstorage.anchored": "Phantom Chest anchored in place.",
+    "message.phantomstorage.unanchored": "Phantom Chest is following you again.",
 
     "container.phantomstorage.tab.chest": "Chest",
     "container.phantomstorage.tab.crafting": "Craft",

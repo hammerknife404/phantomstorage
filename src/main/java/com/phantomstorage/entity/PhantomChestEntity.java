@@ -121,6 +121,8 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     private final VoidFilterContainer inventory = new VoidFilterContainer(INVENTORY_SIZE, filterSlots);
     private final List<LinkedStorage> linkedStorages = new ArrayList<>();
     private int transferCooldown = 0;
+    private boolean anchored = false;
+    @Nullable private Vec3 anchorPos;
 
     public PhantomChestEntity(EntityType<? extends PhantomChestEntity> type, Level level) {
         super(type, level);
@@ -383,6 +385,10 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!this.level().isClientSide) {
             if (player.getUUID().equals(getOwnerUUID())) {
+                if (player.isShiftKeyDown()) {
+                    toggleAnchor(player);
+                    return InteractionResult.CONSUME;
+                }
                 onMenuOpened();
                 player.openMenu(this);
                 return InteractionResult.CONSUME;
@@ -394,6 +400,25 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         return InteractionResult.sidedSuccess(this.level().isClientSide);
     }
 
+    // ── Anchor mode ───────────────────────────────────────────────────────────
+
+    public boolean isAnchored() {
+        return anchored;
+    }
+
+    @Nullable
+    public Vec3 getAnchorPos() {
+        return anchorPos;
+    }
+
+    private void toggleAnchor(Player player) {
+        anchored = !anchored;
+        anchorPos = anchored ? position() : null;
+        player.displayClientMessage(Component.translatable(anchored
+                ? "message.phantomstorage.anchored"
+                : "message.phantomstorage.unanchored"), true);
+    }
+
     // ── Tick / particles ──────────────────────────────────────────────────────
 
     @Override
@@ -401,7 +426,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         super.tick();
         if (!this.level().isClientSide) {
             Player owner = getOwner();
-            if (owner != null && this.distanceToSqr(owner) > SNAP_DIST_SQ) {
+            if (!anchored && owner != null && this.distanceToSqr(owner) > SNAP_DIST_SQ) {
                 this.teleportTo(owner.getX(), owner.getY() + HOVER_Y_OFFSET, owner.getZ());
             }
             transferCooldown++;
@@ -523,6 +548,12 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             tag.putUUID("Owner", getOwnerUUID());
         }
         tag.putInt("Tier", getTier());
+        tag.putBoolean("Anchored", anchored);
+        if (anchorPos != null) {
+            tag.putDouble("AnchorX", anchorPos.x);
+            tag.putDouble("AnchorY", anchorPos.y);
+            tag.putDouble("AnchorZ", anchorPos.z);
+        }
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
         tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
         ListTag storageList = new ListTag();
@@ -541,6 +572,10 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         if (tag.contains("Tier")) {
             setTier(tag.getInt("Tier"));
         }
+        anchored = tag.getBoolean("Anchored");
+        anchorPos = tag.contains("AnchorX")
+                ? new Vec3(tag.getDouble("AnchorX"), tag.getDouble("AnchorY"), tag.getDouble("AnchorZ"))
+                : null;
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());
         }
@@ -576,6 +611,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         @Override
         public boolean canUse() {
+            if (chest.isAnchored()) return false;
             Player o = chest.getOwner();
             if (o == null || o.isSpectator()) return false;
             owner = o;
@@ -584,7 +620,8 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         @Override
         public boolean canContinueToUse() {
-            return owner != null
+            return !chest.isAnchored()
+                    && owner != null
                     && owner.isAlive()
                     && !chest.getNavigation().isDone()
                     && chest.distanceToSqr(owner) > FOLLOW_STOP_DIST * FOLLOW_STOP_DIST;
@@ -655,11 +692,16 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
 
         @Override
         public void start() {
+            // Anchored: drift relative to the fixed anchor point so repeated drifts can't
+            // random-walk away from it. Following: relative to the current position, which
+            // is safe because FollowOwnerGoal reins it back in once it strays from the owner.
+            Vec3 base = chest.isAnchored() && chest.getAnchorPos() != null
+                    ? chest.getAnchorPos() : chest.position();
             double dx = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
             double dy = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_V;
             double dz = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
             chest.getNavigation().moveTo(
-                    chest.getX() + dx, chest.getY() + dy, chest.getZ() + dz, DRIFT_SPEED);
+                    base.x + dx, base.y + dy, base.z + dz, DRIFT_SPEED);
         }
 
         @Override
