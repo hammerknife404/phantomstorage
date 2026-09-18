@@ -48,7 +48,7 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     protected void init() {
         super.init();
 
-        int bw = 38, bh = 18, step = 40;
+        int bw = 30, bh = 18, step = 32;
         int by = topPos - 22;
 
         addRenderableWidget(Button.builder(
@@ -72,6 +72,11 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
                 Component.translatable("container.phantomstorage.tab.logistics"),
                 b -> switchTab(PhantomChestMenu.TAB_LOGISTICS))
                 .bounds(leftPos + 7 + step * 3, by, bw, bh).build());
+
+        addRenderableWidget(Button.builder(
+                Component.translatable("container.phantomstorage.tab.refill"),
+                b -> switchTab(PhantomChestMenu.TAB_REFILL))
+                .bounds(leftPos + 7 + step * 4, by, bw, bh).build());
     }
 
     @Override
@@ -110,6 +115,8 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
             renderCraftingTab(gfx);
         } else if (tab == PhantomChestMenu.TAB_FILTER) {
             renderFilterTab(gfx);
+        } else if (tab == PhantomChestMenu.TAB_REFILL) {
+            renderRefillTab(gfx);
         } else {
             renderLogisticsTab(gfx, mouseX, mouseY);
         }
@@ -211,6 +218,19 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
                 drawSlotBg(gfx,
                         leftPos + PhantomChestMenu.FILTER_X - 1 + col * 18,
                         topPos  + PhantomChestMenu.FILTER_Y - 1 + row * 18);
+            }
+        }
+    }
+
+    private void renderRefillTab(GuiGraphics gfx) {
+        gfx.drawString(font,
+                Component.translatable("container.phantomstorage.tab.refill.header"),
+                leftPos + 61, topPos + 20, 0xFF404040, false);
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                drawSlotBg(gfx,
+                        leftPos + PhantomChestMenu.REFILL_X - 1 + col * 18,
+                        topPos  + PhantomChestMenu.REFILL_Y - 1 + row * 18);
             }
         }
     }

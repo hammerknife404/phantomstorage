@@ -28,6 +28,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public static final int TAB_CRAFT      = 1;
     public static final int TAB_FILTER     = 2;
     public static final int TAB_LOGISTICS  = 3;
+    public static final int TAB_REFILL     = 4;
 
     // ── Logistics tab button IDs (base + link index 0-15) ────────────────────
     public static final int LOGISTICS_CYCLE_BASE  = 100;
@@ -38,9 +39,10 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public static final int CRAFT_RESULT     = 54;
     public static final int CRAFT_GRID_START = 55;
     public static final int FILTER_START     = 64;
-    public static final int PLAYER_INV_START = 73;
-    public static final int HOTBAR_START     = 100;
-    public static final int TOTAL_SLOTS      = 109;
+    public static final int REFILL_START     = 73;
+    public static final int PLAYER_INV_START = 82;
+    public static final int HOTBAR_START     = 109;
+    public static final int TOTAL_SLOTS      = 118;
 
     // ── Screen coordinates (slot top-left, relative to leftPos/topPos) ───────
     private static final int CHEST_X         = 8;
@@ -57,11 +59,15 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public static final int FILTER_X         = 61;
     public static final int FILTER_Y         = 35;
 
+    public static final int REFILL_X         = 61;
+    public static final int REFILL_Y         = 35;
+
     // ── State — [0]=active tab, [1]=entity tier ──────────────────────────────
     private final ContainerData uiData = new SimpleContainerData(2);
 
     private final Container chestContainer;
     private final SimpleContainer filterContainer;
+    private final SimpleContainer refillContainer;
     @Nullable private final PhantomChestEntity entity;
 
     private final Level level;
@@ -71,10 +77,12 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     /** Server-side constructor. */
     public PhantomChestMenu(int id, Inventory playerInventory, Container chestContainer,
-                            SimpleContainer filterContainer, PhantomChestEntity entity) {
+                            SimpleContainer filterContainer, SimpleContainer refillContainer,
+                            PhantomChestEntity entity) {
         super(ModMenuTypes.PHANTOM_CHEST_MENU.get(), id);
         this.chestContainer   = chestContainer;
         this.filterContainer  = filterContainer;
+        this.refillContainer  = refillContainer;
         this.entity           = entity;
         this.player           = playerInventory.player;
         this.level            = playerInventory.player.level();
@@ -87,6 +95,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         addChestSlots();
         addCraftingSlots();
         addFilterSlots();
+        addRefillSlots();
         addPlayerSlots(playerInventory);
 
         if (entity != null && player instanceof ServerPlayer sp) entity.syncHighlightsTo(sp);
@@ -94,7 +103,8 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     /** Client-side constructor (from network). */
     public PhantomChestMenu(int id, Inventory playerInventory, FriendlyByteBuf ignored) {
-        this(id, playerInventory, new SimpleContainer(CHEST_SIZE), new SimpleContainer(9), null);
+        this(id, playerInventory, new SimpleContainer(CHEST_SIZE),
+                new SimpleContainer(9), new SimpleContainer(9), null);
     }
 
     // ── Slot registration ─────────────────────────────────────────────────────
@@ -123,7 +133,16 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 addSlot(new GhostTabSlot(filterContainer, col + row * 3,
-                        FILTER_X + col * 18, FILTER_Y + row * 18));
+                        FILTER_X + col * 18, FILTER_Y + row * 18, TAB_FILTER));
+            }
+        }
+    }
+
+    private void addRefillSlots() {
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                addSlot(new GhostTabSlot(refillContainer, col + row * 3,
+                        REFILL_X + col * 18, REFILL_Y + row * 18, TAB_REFILL));
             }
         }
     }
@@ -167,6 +186,10 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         }
         if (id == TAB_LOGISTICS) {
             uiData.set(0, TAB_LOGISTICS);
+            return true;
+        }
+        if (id == TAB_REFILL) {
+            uiData.set(0, TAB_REFILL);
             return true;
         }
         if (entity == null) return false;
@@ -303,6 +326,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         if (entity != null) {
             entity.saveInventoryTo(player);
             entity.saveFilterTo(player);
+            entity.saveRefillTo(player);
             entity.onMenuClosed();
         }
     }
@@ -326,10 +350,12 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     }
 
     private class GhostTabSlot extends Slot {
-        GhostTabSlot(Container c, int index, int x, int y) {
+        private final int tab;
+        GhostTabSlot(Container c, int index, int x, int y, int tab) {
             super(c, index, x, y);
+            this.tab = tab;
         }
-        @Override public boolean isActive() { return getActiveTab() == TAB_FILTER; }
+        @Override public boolean isActive() { return getActiveTab() == tab; }
         @Override public boolean mayPlace(ItemStack stack) { return true; }
         @Override public int getMaxStackSize() { return 1; }
     }

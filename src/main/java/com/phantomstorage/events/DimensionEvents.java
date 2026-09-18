@@ -36,6 +36,10 @@ public class DimensionEvents {
             newData.put(PhantomChestEntity.KEY_FILTER,
                     original.getList(PhantomChestEntity.KEY_FILTER, Tag.TAG_COMPOUND).copy());
         }
+        if (original.contains(PhantomChestEntity.KEY_REFILL)) {
+            newData.put(PhantomChestEntity.KEY_REFILL,
+                    original.getList(PhantomChestEntity.KEY_REFILL, Tag.TAG_COMPOUND).copy());
+        }
         if (original.contains(PhantomChestEntity.KEY_LINKS)) {
             newData.put(PhantomChestEntity.KEY_LINKS,
                     original.getList(PhantomChestEntity.KEY_LINKS, Tag.TAG_COMPOUND).copy());
@@ -60,6 +64,7 @@ public class DimensionEvents {
             if (e instanceof PhantomChestEntity chest) {
                 chest.saveInventoryTo(event.getEntity());
                 chest.saveFilterTo(event.getEntity());
+                chest.saveRefillTo(event.getEntity());
                 chest.saveLinksTo(event.getEntity());
                 chest.discard();
             }
@@ -97,6 +102,7 @@ public class DimensionEvents {
                 if (chest == tracked || tracked == null) {
                     chest.saveInventoryTo(player);
                     chest.saveFilterTo(player);
+                    chest.saveRefillTo(player);
                     chest.saveLinksTo(player);
                 }
                 chest.discard();
