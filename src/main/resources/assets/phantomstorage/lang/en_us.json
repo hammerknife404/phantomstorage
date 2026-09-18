@@ -23,6 +23,8 @@
     "container.phantomstorage.anchor.not_docked": "Not docked",
     "container.phantomstorage.anchor.radius": "Radius: %s",
     "container.phantomstorage.anchor.eject": "Eject",
+    "container.phantomstorage.anchor.input_mode": "Redstone: %s",
+    "container.phantomstorage.anchor.comparator_mode": "Comparator: %s",
 
     "container.phantomstorage.tab.chest": "Chest",
     "container.phantomstorage.tab.crafting": "Craft",
