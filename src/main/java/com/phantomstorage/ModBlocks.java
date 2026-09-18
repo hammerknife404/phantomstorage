@@ -1,5 +1,6 @@
 package com.phantomstorage;
 
+import com.phantomstorage.block.PhantomAnchorBlock;
 import com.phantomstorage.block.PhantomLinkBlock;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.Block;
@@ -19,4 +20,11 @@ public class ModBlocks {
                             .strength(3.0f, 6.0f)
                             .sound(SoundType.AMETHYST)
                             .lightLevel(s -> 4)));
+
+    public static final DeferredHolder<Block, PhantomAnchorBlock> PHANTOM_ANCHOR =
+            BLOCKS.register("phantom_anchor", () -> new PhantomAnchorBlock(
+                    BlockBehaviour.Properties.of()
+                            .strength(4.0f, 8.0f)
+                            .sound(SoundType.AMETHYST)
+                            .lightLevel(s -> 6)));
 }

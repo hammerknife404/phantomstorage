@@ -1,0 +1,18 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "OPO",
+        "AEA",
+        "OPO"
+    ],
+    "key": {
+        "O": { "item": "minecraft:obsidian" },
+        "P": { "item": "minecraft:phantom_membrane" },
+        "A": { "item": "minecraft:amethyst_shard" },
+        "E": { "item": "minecraft:ender_pearl" }
+    },
+    "result": {
+        "id": "phantomstorage:phantom_anchor",
+        "count": 1
+    }
+}

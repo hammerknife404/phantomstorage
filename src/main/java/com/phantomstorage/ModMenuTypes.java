@@ -1,5 +1,6 @@
 package com.phantomstorage;
 
+import com.phantomstorage.inventory.PhantomAnchorMenu;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.PhantomLinkMenu;
 import net.minecraft.core.registries.Registries;
@@ -19,4 +20,8 @@ public class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<PhantomLinkMenu>> PHANTOM_LINK_MENU =
             MENU_TYPES.register("phantom_link_menu",
                     () -> IMenuTypeExtension.create(PhantomLinkMenu::new));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<PhantomAnchorMenu>> PHANTOM_ANCHOR_MENU =
+            MENU_TYPES.register("phantom_anchor_menu",
+                    () -> IMenuTypeExtension.create(PhantomAnchorMenu::new));
 }

@@ -1,0 +1,5 @@
+{
+    "variants": {
+        "": { "model": "phantomstorage:block/phantom_anchor" }
+    }
+}

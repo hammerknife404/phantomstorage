@@ -14,6 +14,16 @@
     "message.phantomstorage.anchored": "Phantom Chest anchored in place.",
     "message.phantomstorage.unanchored": "Phantom Chest is following you again.",
 
+    "block.phantomstorage.phantom_anchor": "Phantom Anchor",
+    "message.phantomstorage.anchor.docked": "Phantom Chest docked here.",
+    "message.phantomstorage.anchor.undocked": "Phantom Chest released.",
+    "message.phantomstorage.anchor.no_chest": "No active Phantom Chest nearby to dock.",
+    "message.phantomstorage.anchor.recalled": "Phantom Chest recalled to your side.",
+    "container.phantomstorage.anchor.docked": "Docked",
+    "container.phantomstorage.anchor.not_docked": "Not docked",
+    "container.phantomstorage.anchor.radius": "Radius: %s",
+    "container.phantomstorage.anchor.eject": "Eject",
+
     "container.phantomstorage.tab.chest": "Chest",
     "container.phantomstorage.tab.crafting": "Craft",
     "container.phantomstorage.tab.filter": "Filter",

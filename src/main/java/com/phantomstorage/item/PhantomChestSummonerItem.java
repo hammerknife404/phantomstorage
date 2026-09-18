@@ -69,7 +69,12 @@ public class PhantomChestSummonerItem extends Item {
         ServerLevel serverLevel = (ServerLevel) level;
         PhantomChestEntity existing = findPlayerChest(serverLevel.getServer(), player);
 
-        if (existing != null && existing.level() == serverLevel) {
+        if (existing != null && existing.level() == serverLevel && existing.getDockedBlockPos() != null) {
+            // Docked to a Phantom Anchor block — recall it to your side instead of dismissing
+            existing.undock();
+            player.displayClientMessage(
+                    Component.translatable("message.phantomstorage.anchor.recalled"), true);
+        } else if (existing != null && existing.level() == serverLevel) {
             // Chest is here — dismiss it
             existing.saveInventoryTo(player);
             existing.saveFilterTo(player);

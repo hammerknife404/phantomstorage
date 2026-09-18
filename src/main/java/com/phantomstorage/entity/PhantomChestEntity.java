@@ -2,6 +2,7 @@ package com.phantomstorage.entity;
 
 import com.phantomstorage.DesignationMode;
 import com.phantomstorage.LinkedStorage;
+import com.phantomstorage.block.PhantomAnchorBlockEntity;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.VoidFilterContainer;
 import com.phantomstorage.network.LinkedStorageSyncPayload;
@@ -22,6 +23,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -122,6 +124,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     private int transferCooldown = 0;
     private boolean anchored = false;
     @Nullable private Vec3 anchorPos;
+    @Nullable private BlockPos dockedBlockPos;
 
     public PhantomChestEntity(EntityType<? extends PhantomChestEntity> type, Level level) {
         super(type, level);
@@ -410,12 +413,49 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         return anchorPos;
     }
 
+    /** Non-null only when the current anchor is a Phantom Anchor block (as opposed to a freeform sneak-toggle anchor). */
+    @Nullable
+    public BlockPos getDockedBlockPos() {
+        return dockedBlockPos;
+    }
+
     private void toggleAnchor(Player player) {
-        anchored = !anchored;
-        anchorPos = anchored ? position() : null;
+        if (anchored) {
+            undock();
+        } else {
+            anchored = true;
+            anchorPos = position();
+        }
         player.displayClientMessage(Component.translatable(anchored
                 ? "message.phantomstorage.anchored"
                 : "message.phantomstorage.unanchored"), true);
+    }
+
+    /** Docks this chest at a Phantom Anchor block: stops following, roams within the block's configured radius. */
+    public void dockToBlock(BlockPos pos) {
+        anchored = true;
+        anchorPos = Vec3.atCenterOf(pos);
+        dockedBlockPos = pos.immutable();
+    }
+
+    /** Releases any anchor (freeform or block-docked) and notifies the anchor block, if any, that it's free. */
+    public void undock() {
+        if (dockedBlockPos != null && !this.level().isClientSide
+                && this.level().getBlockEntity(dockedBlockPos) instanceof PhantomAnchorBlockEntity anchor) {
+            anchor.onChestUndocked(this.getUUID());
+        }
+        anchored = false;
+        anchorPos = null;
+        dockedBlockPos = null;
+    }
+
+    /** Every removal path (dismiss, dimension change, logout sweep, ...) releases a docked anchor. */
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (!this.level().isClientSide && isAnchored()) {
+            undock();
+        }
+        super.remove(reason);
     }
 
     // ── Tick / particles ──────────────────────────────────────────────────────
@@ -553,6 +593,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             tag.putDouble("AnchorY", anchorPos.y);
             tag.putDouble("AnchorZ", anchorPos.z);
         }
+        if (dockedBlockPos != null) {
+            tag.putLong("DockedBlockPos", dockedBlockPos.asLong());
+        }
         tag.put("Inventory", saveInventory(this.level().registryAccess()));
         tag.put("VoidFilter", saveFilter(this.level().registryAccess()));
         ListTag storageList = new ListTag();
@@ -574,6 +617,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         anchored = tag.getBoolean("Anchored");
         anchorPos = tag.contains("AnchorX")
                 ? new Vec3(tag.getDouble("AnchorX"), tag.getDouble("AnchorY"), tag.getDouble("AnchorZ"))
+                : null;
+        dockedBlockPos = tag.contains("DockedBlockPos")
+                ? BlockPos.of(tag.getLong("DockedBlockPos"))
                 : null;
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());
@@ -696,11 +742,22 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             // is safe because FollowOwnerGoal reins it back in once it strays from the owner.
             Vec3 base = chest.isAnchored() && chest.getAnchorPos() != null
                     ? chest.getAnchorPos() : chest.position();
-            double dx = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
+            double radiusH = horizontalRadius();
+            double dx = (chest.random.nextDouble() - 0.5) * 2.0 * radiusH;
             double dy = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_V;
-            double dz = (chest.random.nextDouble() - 0.5) * 2.0 * DRIFT_RADIUS_H;
+            double dz = (chest.random.nextDouble() - 0.5) * 2.0 * radiusH;
             chest.getNavigation().moveTo(
                     base.x + dx, base.y + dy, base.z + dz, DRIFT_SPEED);
+        }
+
+        /** Docked to a Phantom Anchor block: roam within its configured radius. Otherwise, the small idle flutter. */
+        private double horizontalRadius() {
+            BlockPos dockedAt = chest.getDockedBlockPos();
+            if (dockedAt != null
+                    && chest.level().getBlockEntity(dockedAt) instanceof PhantomAnchorBlockEntity anchor) {
+                return anchor.getRadius();
+            }
+            return DRIFT_RADIUS_H;
         }
 
         @Override
