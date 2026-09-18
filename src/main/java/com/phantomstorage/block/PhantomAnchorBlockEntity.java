@@ -17,6 +17,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -233,6 +234,7 @@ public class PhantomAnchorBlockEntity extends BlockEntity implements MenuProvide
         dockedChestId = chest.getUUID();
         setChanged();
         pushComparatorUpdate();
+        setChunkForced(true);
     }
 
     /** Called by the chest itself when it undocks by any means (GUI eject, sneak-toggle, recall, etc.). */
@@ -241,6 +243,7 @@ public class PhantomAnchorBlockEntity extends BlockEntity implements MenuProvide
             dockedChestId = null;
             setChanged();
             pushComparatorUpdate();
+            setChunkForced(false);
         }
     }
 
@@ -254,6 +257,20 @@ public class PhantomAnchorBlockEntity extends BlockEntity implements MenuProvide
         dockedChestId = null;
         setChanged();
         pushComparatorUpdate();
+        setChunkForced(false); // belt-and-suspenders: covers the case where the entity lookup above found nothing
+    }
+
+    /**
+     * Forces just this block's own chunk to stay loaded while a chest is docked here — never a
+     * radius, even though the chest's roam radius can itself span into a neighboring chunk. If
+     * the chest wanders past this chunk's edge while docked, normal chunk-load rules apply to it
+     * same as any other entity; only the anchor's home chunk is kept loaded.
+     */
+    private void setChunkForced(boolean forced) {
+        if (level instanceof ServerLevel serverLevel) {
+            ChunkPos cp = new ChunkPos(worldPosition);
+            serverLevel.setChunkForced(cp.x, cp.z, forced);
+        }
     }
 
     /** Block broken/replaced while a chest was docked — release it so it resumes following its owner. */
