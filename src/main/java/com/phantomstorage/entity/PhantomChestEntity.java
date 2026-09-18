@@ -2,7 +2,6 @@ package com.phantomstorage.entity;
 
 import com.phantomstorage.DesignationMode;
 import com.phantomstorage.LinkedStorage;
-import com.phantomstorage.ModItems;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.VoidFilterContainer;
 import com.phantomstorage.network.LinkedStorageSyncPayload;
@@ -278,9 +277,9 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         saveLinksToPlayer(player, linkedStorages);
     }
 
-    private static boolean isHoldingWrench(Player player) {
-        return player.getMainHandItem().is(ModItems.PHANTOM_WRENCH.get())
-            || player.getOffhandItem().is(ModItems.PHANTOM_WRENCH.get());
+    /** Read-only, index-stable view of the current links, for GUI display and index-based actions. */
+    public List<LinkedStorage> getLinkedStoragesView() {
+        return java.util.Collections.unmodifiableList(linkedStorages);
     }
 
     // ── Filter ────────────────────────────────────────────────────────────────
@@ -480,7 +479,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
 
         Player owner = getOwner();
-        if (owner instanceof ServerPlayer sp && isHoldingWrench(owner)) {
+        if (owner instanceof ServerPlayer sp) {
             syncHighlightsTo(sp);
         }
     }
