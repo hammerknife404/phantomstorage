@@ -34,4 +34,8 @@ public class ModItems {
     public static final DeferredHolder<Item, BlockItem> PHANTOM_LINK =
             ITEMS.register("phantom_link",
                     () -> new BlockItem(ModBlocks.PHANTOM_LINK.get(), new Item.Properties()));
+
+    public static final DeferredHolder<Item, BlockItem> PHANTOM_ANCHOR =
+            ITEMS.register("phantom_anchor",
+                    () -> new BlockItem(ModBlocks.PHANTOM_ANCHOR.get(), new Item.Properties()));
 }

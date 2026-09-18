@@ -5,16 +5,31 @@
     "item.phantomstorage.phantom_chest_summoner_upgraded": "Upgraded Phantom Chest Summoner",
     "item.phantomstorage.phantom_chest_summoner_supreme": "Supreme Phantom Chest Summoner",
 
-    "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.",
+    "tooltip.phantomstorage.summoner.active": "§5Your chest is following you. Right-click to dismiss.\n§7Sneak+right-click the chest to anchor it in place.",
     "tooltip.phantomstorage.summoner.inactive": "§7Right-click to summon your Phantom Chest.",
 
     "message.phantomstorage.summoned": "Phantom Chest summoned.",
     "message.phantomstorage.dismissed": "Phantom Chest dismissed.",
     "message.phantomstorage.not_owner": "This chest belongs to someone else.",
+    "message.phantomstorage.anchored": "Phantom Chest anchored in place.",
+    "message.phantomstorage.unanchored": "Phantom Chest is following you again.",
+
+    "block.phantomstorage.phantom_anchor": "Phantom Anchor",
+    "message.phantomstorage.anchor.docked": "Phantom Chest docked here.",
+    "message.phantomstorage.anchor.undocked": "Phantom Chest released.",
+    "message.phantomstorage.anchor.no_chest": "No active Phantom Chest nearby to dock.",
+    "message.phantomstorage.anchor.recalled": "Phantom Chest recalled to your side.",
+    "container.phantomstorage.anchor.docked": "Docked",
+    "container.phantomstorage.anchor.not_docked": "Not docked",
+    "container.phantomstorage.anchor.radius": "Radius: %s",
+    "container.phantomstorage.anchor.eject": "Eject",
 
     "container.phantomstorage.tab.chest": "Chest",
     "container.phantomstorage.tab.crafting": "Craft",
-    "container.phantomstorage.tab.filter": "Void Filter",
+    "container.phantomstorage.tab.filter": "Filter",
+    "container.phantomstorage.tab.logistics": "Links",
+    "container.phantomstorage.tab.logistics.header": "Linked storages: %s / %s",
+    "container.phantomstorage.tab.logistics.empty": "No linked storages. Use the Phantom Wrench to link one.",
 
     "item.phantomstorage.phantom_wrench": "Phantom Wrench",
     "tooltip.phantomstorage.wrench": "Designates storage blocks for your Phantom Chest.\nRight-click to link. Sneak+right-click to cycle or unlink.",
@@ -25,5 +40,6 @@
     "message.phantomstorage.wrench.unlinked": "Storage unlinked.",
     "message.phantomstorage.wrench.already_linked": "Already linked as %s. Sneak+right-click to cycle.",
     "message.phantomstorage.wrench.max_links": "Link limit reached (%s/%s).",
+    "message.phantomstorage.wrench.taken": "Another player already has this storage linked.",
     "hud.phantomstorage.wrench_links": "Links: %s / %s"
 }

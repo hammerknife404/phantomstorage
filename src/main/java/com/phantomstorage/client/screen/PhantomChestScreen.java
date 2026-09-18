@@ -1,13 +1,20 @@
 package com.phantomstorage.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.phantomstorage.DesignationMode;
+import com.phantomstorage.entity.PhantomChestEntity;
 import com.phantomstorage.inventory.PhantomChestMenu;
+import com.phantomstorage.network.LinkedStorageSyncPayload;
+import com.phantomstorage.network.WrenchHighlightData;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
 
 public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu> {
 
@@ -19,6 +26,14 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     private static final int SLOT_BORDER  = 0xFF373737;
     private static final int SLOT_INNER   = 0xFFA0A0A0;
     private static final int ACTIVE_TAB_HIGHLIGHT = 0x4400AAFF;
+
+    // ── Logistics tab layout ─────────────────────────────────────────────────
+    private static final int LOGI_X      = 10;
+    private static final int LOGI_HEADER_Y = 8;
+    private static final int LOGI_ROWS_Y = 28;
+    private static final int LOGI_COL_W  = 79;
+    private static final int LOGI_ROW_H  = 12;
+    private static final int LOGI_ROWS   = 8;
 
     public PhantomChestScreen(PhantomChestMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -33,7 +48,7 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     protected void init() {
         super.init();
 
-        int bw = 48, bh = 18;
+        int bw = 38, bh = 18, step = 40;
         int by = topPos - 22;
 
         addRenderableWidget(Button.builder(
@@ -44,14 +59,19 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
         craftTabBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.crafting"),
                 b -> switchTab(PhantomChestMenu.TAB_CRAFT))
-                .bounds(leftPos + 63, by, bw, bh).build();
+                .bounds(leftPos + 7 + step, by, bw, bh).build();
         addRenderableWidget(craftTabBtn);
 
         filterTabBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.filter"),
                 b -> switchTab(PhantomChestMenu.TAB_FILTER))
-                .bounds(leftPos + 119, by, bw, bh).build();
+                .bounds(leftPos + 7 + step * 2, by, bw, bh).build();
         addRenderableWidget(filterTabBtn);
+
+        addRenderableWidget(Button.builder(
+                Component.translatable("container.phantomstorage.tab.logistics"),
+                b -> switchTab(PhantomChestMenu.TAB_LOGISTICS))
+                .bounds(leftPos + 7 + step * 3, by, bw, bh).build());
     }
 
     @Override
@@ -88,9 +108,78 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
 
         if (tab == PhantomChestMenu.TAB_CRAFT) {
             renderCraftingTab(gfx);
-        } else {
+        } else if (tab == PhantomChestMenu.TAB_FILTER) {
             renderFilterTab(gfx);
+        } else {
+            renderLogisticsTab(gfx, mouseX, mouseY);
         }
+    }
+
+    private void renderLogisticsTab(GuiGraphics gfx, int mouseX, int mouseY) {
+        List<LinkedStorageSyncPayload.HighlightEntry> entries = WrenchHighlightData.get();
+        int tier = WrenchHighlightData.getTier();
+        int cap = PhantomChestEntity.linkCapForTier(tier);
+
+        gfx.drawString(font,
+                Component.translatable("container.phantomstorage.tab.logistics.header", entries.size(), cap),
+                leftPos + LOGI_X, topPos + LOGI_HEADER_Y, 0xFF404040, false);
+
+        if (entries.isEmpty()) {
+            gfx.drawString(font,
+                    Component.translatable("container.phantomstorage.tab.logistics.empty"),
+                    leftPos + LOGI_X, topPos + LOGI_ROWS_Y, 0xFF808080, false);
+            return;
+        }
+
+        double range = PhantomChestEntity.transferRangeForTier(tier);
+        Vec3 playerPos = minecraft.player.position();
+
+        for (int i = 0; i < entries.size(); i++) {
+            LinkedStorageSyncPayload.HighlightEntry entry = entries.get(i);
+            int[] pos = rowPos(i);
+            int x = pos[0], y = pos[1];
+
+            boolean inRange = Vec3.atCenterOf(entry.pos()).distanceToSqr(playerPos) <= range * range;
+            int modeColor  = entry.mode() == DesignationMode.INPUT ? 0xFF3388FF : 0xFFFF8C1A;
+            int rangeColor = inRange ? 0xFF55FF55 : 0xFFFF5555;
+
+            gfx.fill(x, y, x + 6, y + 6, modeColor);
+            String coords = entry.pos().getX() + "," + entry.pos().getY() + "," + entry.pos().getZ();
+            gfx.drawString(font, coords, x + 9, y - 1, rangeColor, false);
+
+            boolean hoverUnlink = mouseX >= x + LOGI_COL_W - 8 && mouseX < x + LOGI_COL_W
+                    && mouseY >= y - 1 && mouseY < y + 7;
+            gfx.drawString(font, "X", x + LOGI_COL_W - 8, y - 1, hoverUnlink ? 0xFFFFFFFF : 0xFFAA0000, false);
+        }
+    }
+
+    /** {x, y} screen-space top-left for logistics row `i`, in a 2-column x LOGI_ROWS layout. */
+    private int[] rowPos(int i) {
+        int col = i / LOGI_ROWS;
+        int row = i % LOGI_ROWS;
+        return new int[] {
+                leftPos + LOGI_X + col * LOGI_COL_W,
+                topPos  + LOGI_ROWS_Y + row * LOGI_ROW_H
+        };
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (menu.getActiveTab() == PhantomChestMenu.TAB_LOGISTICS) {
+            List<LinkedStorageSyncPayload.HighlightEntry> entries = WrenchHighlightData.get();
+            for (int i = 0; i < entries.size(); i++) {
+                int[] pos = rowPos(i);
+                int x = pos[0], y = pos[1];
+                if (mouseX >= x && mouseX < x + LOGI_COL_W && mouseY >= y - 1 && mouseY < y + 7) {
+                    boolean hitUnlink = mouseX >= x + LOGI_COL_W - 8;
+                    int id = (hitUnlink ? PhantomChestMenu.LOGISTICS_UNLINK_BASE
+                                        : PhantomChestMenu.LOGISTICS_CYCLE_BASE) + i;
+                    minecraft.gameMode.handleInventoryButtonClick(menu.containerId, id);
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     private void renderCraftingTab(GuiGraphics gfx) {

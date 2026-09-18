@@ -21,6 +21,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.PHANTOM_CHEST_SUMMONER_UPGRADED.get());
                         output.accept(ModItems.PHANTOM_CHEST_SUMMONER_SUPREME.get());
                         output.accept(ModItems.PHANTOM_WRENCH.get());
+                        output.accept(ModItems.PHANTOM_ANCHOR.get());
                     })
                     .build());
 }

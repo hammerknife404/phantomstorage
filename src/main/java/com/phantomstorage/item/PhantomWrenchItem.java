@@ -65,6 +65,11 @@ public class PhantomWrenchItem extends Item {
                         links.size(), linkCap), true);
                 return InteractionResult.FAIL;
             }
+            if (isLinkedByAnotherPlayer((ServerLevel) level, player, pos, dim)) {
+                player.displayClientMessage(
+                    Component.translatable("message.phantomstorage.wrench.taken"), true);
+                return InteractionResult.FAIL;
+            }
             links.add(new LinkedStorage(pos, dim, DesignationMode.OUTPUT));
             player.displayClientMessage(
                 Component.translatable("message.phantomstorage.wrench.linked_output"), true);
@@ -101,6 +106,21 @@ public class PhantomWrenchItem extends Item {
         }
 
         return InteractionResult.sidedSuccess(false);
+    }
+
+    /**
+     * First-linker-wins conflict check: true if some other online player already has this
+     * position linked. Vanilla has no block-ownership concept to check against, so this only
+     * covers players currently online — a link held by an offline player isn't visible here.
+     */
+    private static boolean isLinkedByAnotherPlayer(ServerLevel level, Player self, BlockPos pos, ResourceKey<Level> dim) {
+        for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
+            if (other.getUUID().equals(self.getUUID())) continue;
+            boolean taken = PhantomChestEntity.loadLinksFromPlayer(other).stream()
+                .anyMatch(s -> s.pos().equals(pos) && s.dimension().equals(dim));
+            if (taken) return true;
+        }
+        return false;
     }
 
     @Override

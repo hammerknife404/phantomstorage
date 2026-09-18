@@ -1,5 +1,6 @@
 package com.phantomstorage.inventory;
 
+import com.phantomstorage.LinkedStorage;
 import com.phantomstorage.ModMenuTypes;
 import com.phantomstorage.entity.PhantomChestEntity;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,14 +18,20 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Optional;
 
 public class PhantomChestMenu extends AbstractContainerMenu {
 
     // ── Tab IDs ───────────────────────────────────────────────────────────────
-    public static final int TAB_CHEST  = 0;
-    public static final int TAB_CRAFT  = 1;
-    public static final int TAB_FILTER = 2;
+    public static final int TAB_CHEST      = 0;
+    public static final int TAB_CRAFT      = 1;
+    public static final int TAB_FILTER     = 2;
+    public static final int TAB_LOGISTICS  = 3;
+
+    // ── Logistics tab button IDs (base + link index 0-15) ────────────────────
+    public static final int LOGISTICS_CYCLE_BASE  = 100;
+    public static final int LOGISTICS_UNLINK_BASE = 200;
 
     // ── Slot layout ───────────────────────────────────────────────────────────
     public static final int CHEST_SIZE       = 54;
@@ -81,6 +88,8 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         addCraftingSlots();
         addFilterSlots();
         addPlayerSlots(playerInventory);
+
+        if (entity != null && player instanceof ServerPlayer sp) entity.syncHighlightsTo(sp);
     }
 
     /** Client-side constructor (from network). */
@@ -156,7 +165,41 @@ public class PhantomChestMenu extends AbstractContainerMenu {
             uiData.set(0, TAB_FILTER);
             return true;
         }
+        if (id == TAB_LOGISTICS) {
+            uiData.set(0, TAB_LOGISTICS);
+            return true;
+        }
+        if (entity == null) return false;
+        if (id >= LOGISTICS_CYCLE_BASE && id < LOGISTICS_CYCLE_BASE + 16) {
+            return cycleLink(player, id - LOGISTICS_CYCLE_BASE);
+        }
+        if (id >= LOGISTICS_UNLINK_BASE && id < LOGISTICS_UNLINK_BASE + 16) {
+            return unlinkLink(player, id - LOGISTICS_UNLINK_BASE);
+        }
         return false;
+    }
+
+    // ── Logistics tab actions ────────────────────────────────────────────────
+
+    private boolean cycleLink(Player player, int index) {
+        List<LinkedStorage> links = entity.getLinkedStoragesView();
+        if (index < 0 || index >= links.size()) return false;
+        LinkedStorage old = links.get(index);
+        entity.removeLinkedStorage(old.pos(), old.dimension());
+        entity.addLinkedStorage(new LinkedStorage(old.pos(), old.dimension(), old.mode().cycle()));
+        entity.saveLinksTo(player);
+        if (player instanceof ServerPlayer sp) entity.syncHighlightsTo(sp);
+        return true;
+    }
+
+    private boolean unlinkLink(Player player, int index) {
+        List<LinkedStorage> links = entity.getLinkedStoragesView();
+        if (index < 0 || index >= links.size()) return false;
+        LinkedStorage old = links.get(index);
+        entity.removeLinkedStorage(old.pos(), old.dimension());
+        entity.saveLinksTo(player);
+        if (player instanceof ServerPlayer sp) entity.syncHighlightsTo(sp);
+        return true;
     }
 
     // ── Crafting ──────────────────────────────────────────────────────────────
