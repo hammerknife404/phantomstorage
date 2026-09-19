@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * One-per-player non-stackable toggle item.
+ * One-per-player non-stackable toggle item. The only way to summon/dismiss a Phantom Chest —
+ * tier progression instead comes from applying {@link PhantomChestUpgradeTokenItem}s directly
+ * to an already-summoned chest.
  * Inventory lives in player persistent data — never in this item.
  * Only one chest can exist per player at a time, across all dimensions.
  * The chest does not follow the player through portals; use this item in the
@@ -35,21 +37,8 @@ public class PhantomChestSummonerItem extends Item {
 
     private static final String KEY_ACTIVE = "ChestActive";
 
-    /** 0 = base (chest only), 1 = upgraded (+ crafting), 2 = supreme (+ void filter) */
-    private final int tier;
-
-    public PhantomChestSummonerItem(Properties props, int tier) {
+    public PhantomChestSummonerItem(Properties props) {
         super(props);
-        this.tier = tier;
-    }
-
-    public int getTier() {
-        return tier;
-    }
-
-    @Override
-    public boolean isFoil(ItemStack stack) {
-        return tier > 0;
     }
 
     /** Cooldown applied on every use (summon or dismiss). 3 seconds = 60 ticks. */
@@ -98,8 +87,9 @@ public class PhantomChestSummonerItem extends Item {
             if (chest == null) return InteractionResultHolder.fail(stack);
 
             chest.setOwnerUUID(player.getUUID());
-            chest.setTier(this.tier);
-            PhantomChestEntity.saveTierTo(player, this.tier);
+            // Restores whatever tier the player last upgraded to via a token — summoning never
+            // resets progress back down to base.
+            chest.setTier(PhantomChestEntity.getSavedTier(player));
             // Spawn at a random direction from the player so there's no look-direction bias.
             double spawnAngle = serverLevel.random.nextDouble() * Math.PI * 2;
             chest.moveTo(

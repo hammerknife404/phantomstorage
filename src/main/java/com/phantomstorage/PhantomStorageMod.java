@@ -17,5 +17,6 @@ public class PhantomStorageMod {
         ModBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         ModMenuTypes.MENU_TYPES.register(modEventBus);
         ModCreativeTabs.CREATIVE_TABS.register(modEventBus);
+        ModParticles.PARTICLE_TYPES.register(modEventBus);
     }
 }

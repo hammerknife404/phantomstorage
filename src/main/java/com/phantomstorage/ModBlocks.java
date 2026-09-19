@@ -26,5 +26,5 @@ public class ModBlocks {
                     BlockBehaviour.Properties.of()
                             .strength(4.0f, 8.0f)
                             .sound(SoundType.AMETHYST)
-                            .lightLevel(s -> 6)));
+                            .lightLevel(s -> 10))); // matches soul lantern's glow
 }

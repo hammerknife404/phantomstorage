@@ -62,6 +62,12 @@ public class DimensionEvents {
         if (oldLevel != null) {
             Entity e = oldLevel.getEntity(entityId);
             if (e instanceof PhantomChestEntity chest) {
+                // Docked chests are stationary base stations — they keep existing (ticking,
+                // running redstone dock/undock, pushing/pulling wrench-linked storage) in their
+                // own dimension even while the owner travels elsewhere. They only go away on
+                // logout (dismissAllChests) or by reusing the summoner item.
+                if (chest.isAnchored()) return;
+
                 chest.saveInventoryTo(event.getEntity());
                 chest.saveFilterTo(event.getEntity());
                 chest.saveRefillTo(event.getEntity());

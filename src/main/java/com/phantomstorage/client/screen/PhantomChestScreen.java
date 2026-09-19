@@ -29,19 +29,28 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
 
     // ── Logistics tab layout ─────────────────────────────────────────────────
     private static final int LOGI_X      = 10;
-    private static final int LOGI_HEADER_Y = 8;
-    private static final int LOGI_ROWS_Y = 28;
+    private static final int LOGI_HEADER_Y = 20;
+    private static final int LOGI_ROWS_Y = 32;
     private static final int LOGI_COL_W  = 79;
     private static final int LOGI_ROW_H  = 12;
     private static final int LOGI_ROWS   = 8;
 
+    // Vanilla generic_54.png's chest-slot area ends here; everything below (player inventory +
+    // hotbar) is blitted separately, shifted down, to make room for the crafting row that's now
+    // permanently docked under the main inventory instead of living on its own tab.
+    private static final int CHEST_AREA_SRC_BOTTOM = 125;
+    private static final int VANILLA_SRC_HEIGHT     = 222;
+    // Must match the +55 baked into PhantomChestMenu's PLAYER_INV_Y (195 = 140 + 55) and
+    // HOTBAR_Y (253 = 198 + 55) — leaves exactly enough room for the 3-row crafting grid
+    // (CRAFT_GRID_Y=133, 54px tall) plus an 8px margin on each side.
+    private static final int PLAYER_SECTION_SHIFT   = 55;
+
     public PhantomChestScreen(PhantomChestMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
         this.imageWidth  = 176;
-        this.imageHeight = 222;
+        this.imageHeight = VANILLA_SRC_HEIGHT + PLAYER_SECTION_SHIFT;
     }
 
-    private Button craftTabBtn;
     private Button filterTabBtn;
 
     @Override
@@ -56,34 +65,27 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
                 b -> switchTab(PhantomChestMenu.TAB_CHEST))
                 .bounds(leftPos + 7, by, bw, bh).build());
 
-        craftTabBtn = Button.builder(
-                Component.translatable("container.phantomstorage.tab.crafting"),
-                b -> switchTab(PhantomChestMenu.TAB_CRAFT))
-                .bounds(leftPos + 7 + step, by, bw, bh).build();
-        addRenderableWidget(craftTabBtn);
-
         filterTabBtn = Button.builder(
                 Component.translatable("container.phantomstorage.tab.filter"),
                 b -> switchTab(PhantomChestMenu.TAB_FILTER))
-                .bounds(leftPos + 7 + step * 2, by, bw, bh).build();
+                .bounds(leftPos + 7 + step, by, bw, bh).build();
         addRenderableWidget(filterTabBtn);
 
         addRenderableWidget(Button.builder(
                 Component.translatable("container.phantomstorage.tab.logistics"),
                 b -> switchTab(PhantomChestMenu.TAB_LOGISTICS))
-                .bounds(leftPos + 7 + step * 3, by, bw, bh).build());
+                .bounds(leftPos + 7 + step * 2, by, bw, bh).build());
 
         addRenderableWidget(Button.builder(
                 Component.translatable("container.phantomstorage.tab.refill"),
                 b -> switchTab(PhantomChestMenu.TAB_REFILL))
-                .bounds(leftPos + 7 + step * 4, by, bw, bh).build());
+                .bounds(leftPos + 7 + step * 3, by, bw, bh).build());
     }
 
     @Override
     public void containerTick() {
         super.containerTick();
         int tier = menu.getEntityTier();
-        if (craftTabBtn  != null) craftTabBtn.active  = tier >= 1;
         if (filterTabBtn != null) filterTabBtn.active = tier >= 2;
     }
 
@@ -103,17 +105,26 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
     @Override
     protected void renderBg(GuiGraphics gfx, float partialTick, int mouseX, int mouseY) {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-        gfx.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
+        // Top: title border + chest inventory rows, unchanged from the vanilla source.
+        gfx.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, CHEST_AREA_SRC_BOTTOM);
+        // Bottom: player inventory + hotbar, shifted down to make room for the crafting row.
+        gfx.blit(TEXTURE, leftPos, topPos + CHEST_AREA_SRC_BOTTOM + PLAYER_SECTION_SHIFT,
+                0, CHEST_AREA_SRC_BOTTOM, imageWidth, VANILLA_SRC_HEIGHT - CHEST_AREA_SRC_BOTTOM);
+        // Flat panel fill for the gap opened up between them.
+        gfx.fill(leftPos, topPos + CHEST_AREA_SRC_BOTTOM,
+                leftPos + imageWidth, topPos + CHEST_AREA_SRC_BOTTOM + PLAYER_SECTION_SHIFT, PANEL_COLOR);
 
         int tab = menu.getActiveTab();
-        if (tab == PhantomChestMenu.TAB_CHEST) return;
+        if (tab == PhantomChestMenu.TAB_CHEST) {
+            // Crafting is always shown docked under the main inventory now, tier permitting.
+            if (menu.getEntityTier() >= 1) renderCraftingTab(gfx);
+            return;
+        }
 
         // Cover the 6×9 chest slot squares drawn by the texture
         gfx.fill(leftPos + 7, topPos + 17, leftPos + 169, topPos + 125, PANEL_COLOR);
 
-        if (tab == PhantomChestMenu.TAB_CRAFT) {
-            renderCraftingTab(gfx);
-        } else if (tab == PhantomChestMenu.TAB_FILTER) {
+        if (tab == PhantomChestMenu.TAB_FILTER) {
             renderFilterTab(gfx);
         } else if (tab == PhantomChestMenu.TAB_REFILL) {
             renderRefillTab(gfx);
@@ -220,6 +231,10 @@ public class PhantomChestScreen extends AbstractContainerScreen<PhantomChestMenu
                         topPos  + PhantomChestMenu.FILTER_Y - 1 + row * 18);
             }
         }
+        // Word-wrapped and width-capped so it can never spill past the panel's edges.
+        gfx.drawWordWrap(font,
+                Component.translatable("container.phantomstorage.tab.filter.warning"),
+                leftPos + 9, topPos + 96, 158, 0xFFCC4444);
     }
 
     private void renderRefillTab(GuiGraphics gfx) {

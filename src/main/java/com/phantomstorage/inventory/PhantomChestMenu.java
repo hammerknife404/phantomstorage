@@ -24,11 +24,12 @@ import java.util.Optional;
 public class PhantomChestMenu extends AbstractContainerMenu {
 
     // ── Tab IDs ───────────────────────────────────────────────────────────────
+    // The crafting grid is no longer its own tab — it's always shown alongside
+    // the main inventory on TAB_CHEST (tier permitting).
     public static final int TAB_CHEST      = 0;
-    public static final int TAB_CRAFT      = 1;
-    public static final int TAB_FILTER     = 2;
-    public static final int TAB_LOGISTICS  = 3;
-    public static final int TAB_REFILL     = 4;
+    public static final int TAB_FILTER     = 1;
+    public static final int TAB_LOGISTICS  = 2;
+    public static final int TAB_REFILL     = 3;
 
     // ── Logistics tab button IDs (base + link index 0-15) ────────────────────
     public static final int LOGISTICS_CYCLE_BASE  = 100;
@@ -48,13 +49,15 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     private static final int CHEST_X         = 8;
     private static final int CHEST_Y         = 18;
     private static final int PLAYER_INV_X    = 8;
-    private static final int PLAYER_INV_Y    = 140;
-    private static final int HOTBAR_Y        = 198;
+    // Player inventory/hotbar sit 55px lower than the vanilla generic_54 layout to make room
+    // for the crafting row now permanently docked under the main inventory.
+    private static final int PLAYER_INV_Y    = 195;
+    private static final int HOTBAR_Y        = 253;
 
     public static final int CRAFT_GRID_X     = 30;
-    public static final int CRAFT_GRID_Y     = 20;
+    public static final int CRAFT_GRID_Y     = 133;
     public static final int CRAFT_RESULT_X   = 124;
-    public static final int CRAFT_RESULT_Y   = 38;
+    public static final int CRAFT_RESULT_Y   = 151;
 
     public static final int FILTER_X         = 61;
     public static final int FILTER_Y         = 35;
@@ -124,7 +127,7 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 addSlot(new TabSlot(craftSlots, col + row * 3,
-                        CRAFT_GRID_X + col * 18, CRAFT_GRID_Y + row * 18, TAB_CRAFT));
+                        CRAFT_GRID_X + col * 18, CRAFT_GRID_Y + row * 18, TAB_CHEST, 1));
             }
         }
     }
@@ -174,10 +177,6 @@ public class PhantomChestMenu extends AbstractContainerMenu {
     public boolean clickMenuButton(Player player, int id) {
         if (id == TAB_CHEST) {
             uiData.set(0, TAB_CHEST);
-            return true;
-        }
-        if (id == TAB_CRAFT && getEntityTier() >= 1) {
-            uiData.set(0, TAB_CRAFT);
             return true;
         }
         if (id == TAB_FILTER && getEntityTier() >= 2) {
@@ -293,18 +292,10 @@ public class PhantomChestMenu extends AbstractContainerMenu {
         } else if (index < FILTER_START) {
             if (!moveItemStackTo(stack, PLAYER_INV_START, TOTAL_SLOTS, true)) return ItemStack.EMPTY;
         } else if (index >= PLAYER_INV_START && index < HOTBAR_START) {
-            boolean moved = switch (getActiveTab()) {
-                case TAB_CHEST -> moveItemStackTo(stack, 0, CHEST_SIZE, false);
-                case TAB_CRAFT -> moveItemStackTo(stack, CRAFT_GRID_START, FILTER_START, false);
-                default -> false;
-            };
+            boolean moved = getActiveTab() == TAB_CHEST && moveItemStackTo(stack, 0, CHEST_SIZE, false);
             if (!moved && !moveItemStackTo(stack, HOTBAR_START, TOTAL_SLOTS, false)) return ItemStack.EMPTY;
         } else {
-            boolean moved = switch (getActiveTab()) {
-                case TAB_CHEST -> moveItemStackTo(stack, 0, CHEST_SIZE, false);
-                case TAB_CRAFT -> moveItemStackTo(stack, CRAFT_GRID_START, FILTER_START, false);
-                default -> false;
-            };
+            boolean moved = getActiveTab() == TAB_CHEST && moveItemStackTo(stack, 0, CHEST_SIZE, false);
             if (!moved && !moveItemStackTo(stack, PLAYER_INV_START, HOTBAR_START, false)) return ItemStack.EMPTY;
         }
 
@@ -335,18 +326,23 @@ public class PhantomChestMenu extends AbstractContainerMenu {
 
     private class TabSlot extends Slot {
         private final int tab;
+        private final int minTier;
         TabSlot(Container c, int index, int x, int y, int tab) {
+            this(c, index, x, y, tab, 0);
+        }
+        TabSlot(Container c, int index, int x, int y, int tab, int minTier) {
             super(c, index, x, y);
             this.tab = tab;
+            this.minTier = minTier;
         }
-        @Override public boolean isActive() { return getActiveTab() == tab; }
+        @Override public boolean isActive() { return getActiveTab() == tab && getEntityTier() >= minTier; }
     }
 
     private class CraftResultTabSlot extends ResultSlot {
         CraftResultTabSlot(Player p, TransientCraftingContainer c, ResultContainer r, int idx, int x, int y) {
             super(p, c, r, idx, x, y);
         }
-        @Override public boolean isActive() { return getActiveTab() == TAB_CRAFT; }
+        @Override public boolean isActive() { return getActiveTab() == TAB_CHEST && getEntityTier() >= 1; }
     }
 
     private class GhostTabSlot extends Slot {
