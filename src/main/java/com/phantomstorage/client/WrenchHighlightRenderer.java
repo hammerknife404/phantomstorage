@@ -88,7 +88,12 @@ public class WrenchHighlightRenderer {
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
         int x = w / 2 - mc.font.width(text) / 2;
-        int y = h - 44;
+        // The whole center-bottom column below this is occupied by vanilla's own stack:
+        // action bar messages (~h-72..h-64 — and this is exactly what the wrench's own
+        // link/unlink/limit messages use via displayClientMessage(.., true)), the selected-
+        // item-name popup (h-59, or h-45 in creative), the health/hunger rows (h-39..h-30),
+        // and the hotbar (below h-22). Sit above all of it, with margin.
+        int y = h - 88;
         gui.drawString(mc.font, text, x, y, 0xFFFFFFFF, true);
     }
 }
