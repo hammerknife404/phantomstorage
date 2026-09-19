@@ -2,6 +2,7 @@ package com.phantomstorage.block;
 
 import com.phantomstorage.ComparatorMode;
 import com.phantomstorage.ModBlockEntities;
+import com.phantomstorage.ModParticles;
 import com.phantomstorage.RedstoneInputMode;
 import com.phantomstorage.entity.PhantomChestEntity;
 import com.phantomstorage.inventory.PhantomAnchorMenu;
@@ -170,8 +171,12 @@ public class PhantomAnchorBlockEntity extends BlockEntity implements MenuProvide
         }
     }
 
-    /** Ticks only while docked with FULLNESS output selected, to keep the comparator reasonably live. */
     public static void serverTick(Level level, BlockPos pos, BlockState state, PhantomAnchorBlockEntity be) {
+        if (be.isDocked() && level instanceof ServerLevel serverLevel && (level.getGameTime() & 0xF) == 0) {
+            be.spawnDockedParticle(serverLevel);
+        }
+
+        // Comparator refresh only while docked with FULLNESS output selected, to keep it reasonably live.
         if (be.comparatorMode != ComparatorMode.FULLNESS || !be.isDocked()) return;
         if ((level.getGameTime() & 0x7) != 0) return; // every 8 ticks
         int signal = be.getComparatorOutput();
@@ -179,6 +184,20 @@ public class PhantomAnchorBlockEntity extends BlockEntity implements MenuProvide
             be.lastComparatorSignal = signal;
             level.updateNeighborsAt(pos, state.getBlock());
         }
+    }
+
+    /**
+     * Mirrors the docked chest's own ambient soul particle (same cadence, same spawn box, same
+     * (0, 0.02, 0) drift) using the anchor's own longer-lived particle variant. count=0 spawns
+     * exactly one particle at the given position with velocity (xOffset,yOffset,zOffset)*speed —
+     * no positional jitter or extra randomness added by the packet itself.
+     */
+    private void spawnDockedParticle(ServerLevel level) {
+        level.sendParticles(ModParticles.ANCHOR_SOUL.get(),
+                worldPosition.getX() + 0.5 + (level.random.nextDouble() - 0.5) * 0.8,
+                worldPosition.getY() + 0.6 + level.random.nextDouble() * 0.75,
+                worldPosition.getZ() + 0.5 + (level.random.nextDouble() - 0.5) * 0.8,
+                0, 0.0, 0.02, 0.0, 1.0);
     }
 
     // ── Docking ───────────────────────────────────────────────────────────────
