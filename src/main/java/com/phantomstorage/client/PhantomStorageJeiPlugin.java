@@ -7,6 +7,8 @@ import com.phantomstorage.inventory.PhantomChestMenu;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.gui.handlers.IGuiClickableArea;
+import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferInfo;
@@ -24,6 +26,8 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,14 +42,23 @@ public class PhantomStorageJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration reg) {
-        // Click area on the arrow between grid and result — does not interfere with
-        // taking items from the output slot
-        reg.addRecipeClickArea(
-                PhantomChestScreen.class,
-                PhantomChestMenu.CRAFT_GRID_X + 54 + 2,
-                PhantomChestMenu.CRAFT_GRID_Y + 18,
-                20, 18,
-                RecipeTypes.CRAFTING);
+        // Click area on the arrow between grid and result — only while the Chest tab (which the
+        // crafting grid is now docked under) is active and tier unlocks it, since its screen
+        // coordinates would otherwise overlap other tabs' slots
+        reg.addGuiContainerHandler(PhantomChestScreen.class, new IGuiContainerHandler<PhantomChestScreen>() {
+            @Override
+            public Collection<IGuiClickableArea> getGuiClickableAreas(PhantomChestScreen screen, double mouseX, double mouseY) {
+                if (screen.getMenu().getActiveTab() != PhantomChestMenu.TAB_CHEST
+                        || screen.getMenu().getEntityTier() < 1) {
+                    return Collections.emptyList();
+                }
+                return List.of(IGuiClickableArea.createBasic(
+                        PhantomChestMenu.CRAFT_GRID_X + 54 + 2,
+                        PhantomChestMenu.CRAFT_GRID_Y + 18,
+                        20, 18,
+                        RecipeTypes.CRAFTING));
+            }
+        });
     }
 
     @Override
@@ -82,7 +95,7 @@ public class PhantomStorageJeiPlugin implements IModPlugin {
 
         @Override
         public boolean canHandle(PhantomChestMenu container, RecipeHolder<CraftingRecipe> recipe) {
-            return container.getActiveTab() == PhantomChestMenu.TAB_CRAFT;
+            return container.getActiveTab() == PhantomChestMenu.TAB_CHEST && container.getEntityTier() >= 1;
         }
 
         @Nullable
