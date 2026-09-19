@@ -2,15 +2,18 @@ package com.phantomstorage.entity;
 
 import com.phantomstorage.DesignationMode;
 import com.phantomstorage.LinkedStorage;
+import com.phantomstorage.ModParticles;
 import com.phantomstorage.block.PhantomAnchorBlockEntity;
 import com.phantomstorage.inventory.PhantomChestMenu;
 import com.phantomstorage.inventory.VoidFilterContainer;
+import com.phantomstorage.item.PhantomChestUpgradeTokenItem;
 import com.phantomstorage.network.LinkedStorageSyncPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -82,6 +85,13 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> TIER =
             SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.INT);
+    /**
+     * Client-visible mirror of "docked to a Phantom Anchor block" (dockedBlockPos != null).
+     * Plain fields like anchored/dockedBlockPos are server-only — this exists purely so the
+     * client-side particle tick below can tell the two anchor modes apart.
+     */
+    private static final EntityDataAccessor<Boolean> DOCKED_TO_ANCHOR =
+            SynchedEntityData.defineId(PhantomChestEntity.class, EntityDataSerializers.BOOLEAN);
 
     public static final String KEY_FILTER = "PhantomChestFilter";
     public static final String KEY_LINKS  = "PhantomChestLinkedStorages";
@@ -169,6 +179,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         builder.define(OWNER_UUID, Optional.empty());
         builder.define(OPEN_COUNT, 0);
         builder.define(TIER, 0);
+        builder.define(DOCKED_TO_ANCHOR, false);
     }
 
     // ── Owner ─────────────────────────────────────────────────────────────────
@@ -500,6 +511,11 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!this.level().isClientSide) {
             if (player.getUUID().equals(getOwnerUUID())) {
+                ItemStack held = player.getItemInHand(hand);
+                if (held.getItem() instanceof PhantomChestUpgradeTokenItem token) {
+                    applyUpgradeToken(player, held, token.getTier());
+                    return InteractionResult.CONSUME;
+                }
                 if (player.isShiftKeyDown()) {
                     toggleAnchor(player);
                     return InteractionResult.CONSUME;
@@ -513,6 +529,22 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
             }
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
+    }
+
+    /** Bumps this chest straight to the token's tier, provided that's actually an upgrade. */
+    private void applyUpgradeToken(Player player, ItemStack tokenStack, int newTier) {
+        if (newTier <= getTier()) {
+            player.displayClientMessage(
+                    Component.translatable("message.phantomstorage.upgrade.no_effect"), true);
+            return;
+        }
+        setTier(newTier);
+        saveTierTo(player, newTier);
+        if (!player.getAbilities().instabuild) {
+            tokenStack.shrink(1);
+        }
+        player.displayClientMessage(
+                Component.translatable("message.phantomstorage.upgrade.applied", newTier + 1), true);
     }
 
     // ── Anchor mode ───────────────────────────────────────────────────────────
@@ -549,6 +581,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         anchored = true;
         anchorPos = Vec3.atCenterOf(pos);
         dockedBlockPos = pos.immutable();
+        this.entityData.set(DOCKED_TO_ANCHOR, true);
     }
 
     /** Releases any anchor (freeform or block-docked) and notifies the anchor block, if any, that it's free. */
@@ -560,6 +593,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         anchored = false;
         anchorPos = null;
         dockedBlockPos = null;
+        this.entityData.set(DOCKED_TO_ANCHOR, false);
     }
 
     /** Every removal path (dismiss, dimension change, logout sweep, ...) releases a docked anchor. */
@@ -594,8 +628,13 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         }
         if (this.level().isClientSide && this.tickCount % 16 == 0) {
             // Chest visual spans getY() (feet) to getY() + 0.9375 (lid top) at scale 1.0.
+            // While docked to a Phantom Anchor block, matches the anchor's own longer-lived
+            // particle so the two read as one connected effect.
+            ParticleOptions particle = this.entityData.get(DOCKED_TO_ANCHOR)
+                    ? ModParticles.ANCHOR_SOUL.get()
+                    : ParticleTypes.SOUL;
             this.level().addParticle(
-                    ParticleTypes.SOUL,
+                    particle,
                     this.getX() + (this.random.nextDouble() - 0.5) * 0.8,
                     this.getY() + 0.1 + this.random.nextDouble() * 0.75,
                     this.getZ() + (this.random.nextDouble() - 0.5) * 0.8,
@@ -740,6 +779,7 @@ public class PhantomChestEntity extends PathfinderMob implements MenuProvider {
         dockedBlockPos = tag.contains("DockedBlockPos")
                 ? BlockPos.of(tag.getLong("DockedBlockPos"))
                 : null;
+        this.entityData.set(DOCKED_TO_ANCHOR, dockedBlockPos != null);
         if (tag.contains("Inventory")) {
             loadInventory(tag.getList("Inventory", 10), this.level().registryAccess());
         }

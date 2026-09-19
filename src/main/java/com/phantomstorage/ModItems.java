@@ -1,6 +1,7 @@
 package com.phantomstorage;
 
 import com.phantomstorage.item.PhantomChestSummonerItem;
+import com.phantomstorage.item.PhantomChestUpgradeTokenItem;
 import com.phantomstorage.item.PhantomWrenchItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.BlockItem;
@@ -14,17 +15,17 @@ public class ModItems {
 
     public static final DeferredHolder<Item, PhantomChestSummonerItem> PHANTOM_CHEST_SUMMONER =
             ITEMS.register("phantom_chest_summoner",
-                    () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 0));
+                    () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1)));
 
-    /** Tier 1 — unlocks the embedded crafting grid tab. */
-    public static final DeferredHolder<Item, PhantomChestSummonerItem> PHANTOM_CHEST_SUMMONER_UPGRADED =
+    /** Upgrades an active chest to tier 1 (unlocks the embedded crafting grid tab). */
+    public static final DeferredHolder<Item, PhantomChestUpgradeTokenItem> PHANTOM_CHEST_SUMMONER_UPGRADED =
             ITEMS.register("phantom_chest_summoner_upgraded",
-                    () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 1));
+                    () -> new PhantomChestUpgradeTokenItem(new Item.Properties(), 1));
 
-    /** Tier 2 — unlocks crafting grid + void filter tabs. */
-    public static final DeferredHolder<Item, PhantomChestSummonerItem> PHANTOM_CHEST_SUMMONER_SUPREME =
+    /** Upgrades an active chest to tier 2 (unlocks crafting grid + void filter tabs). */
+    public static final DeferredHolder<Item, PhantomChestUpgradeTokenItem> PHANTOM_CHEST_SUMMONER_SUPREME =
             ITEMS.register("phantom_chest_summoner_supreme",
-                    () -> new PhantomChestSummonerItem(new Item.Properties().stacksTo(1), 2));
+                    () -> new PhantomChestUpgradeTokenItem(new Item.Properties(), 2));
 
     public static final DeferredHolder<Item, PhantomWrenchItem> PHANTOM_WRENCH =
             ITEMS.register("phantom_wrench",
